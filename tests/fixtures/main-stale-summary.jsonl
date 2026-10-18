@@ -1,0 +1,8 @@
+{"type":"system","message":{"role":"system","content":"sys"}}
+{"type":"user","message":{"role":"user","content":"hwip 규칙 적용돼 있어?"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"PREV_TURN_ANSWER — two-way mode active."}],"stop_reason":"end_turn"}}
+{"type":"user","message":{"role":"user","content":"package.json 읽고 README.md 수정"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"Edit","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"x"}]}}

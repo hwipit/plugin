@@ -1,0 +1,18 @@
+{
+  "name": "hwip-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hwip Claude Code plugin — hooks, skills, and behavioral rules",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hwipit/plugin"
+  },
+  "homepage": "https://github.com/hwipit/plugin",
+  "bugs": {
+    "url": "https://github.com/hwipit/plugin/issues"
+  },
+  "license": "Apache-2.0",
+  "scripts": {
+    "lint:rules-sync": "node scripts/lint-rules-sync.js"
+  }
+}

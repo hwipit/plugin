@@ -1,0 +1,46 @@
+{
+  "$comment": "Declarative map of CORE_RULES.md Two-Way sections to downstream rule audiences. Consumed by scripts/extract-core.js (which cli/scripts/sync-from-plugin.mjs runs to regenerate cli/src/hwip-core.generated.ts). Every `###` heading inside the scope MUST appear here — the extractor fails on an unclassified heading, so adding a new section to CORE_RULES.md forces an explicit decision. audiences: 'hook-driven' = agents with a Stop-equivalent hook (Cursor, Windsurf, Gemini, Codex, Copilot); 'rule-only' = agents without one (Cline, Aider). An empty audiences array is a deliberate exclusion — record why in `note`.",
+  "source": "docs/CORE_RULES.md",
+  "scope": { "start": "## Two-Way Mode", "end": "## One-Way Mode" },
+  "sections": [
+    {
+      "heading": "### Notification discipline",
+      "audiences": [],
+      "note": "Replaced by the per-agent notify preambles in cli/src/templates.ts (HOOK_DRIVEN_NOTIFY / MANUAL_NOTIFY) — the discipline differs by hook presence."
+    },
+    {
+      "heading": "### Push Signal — steer the end-of-turn auto-push (Stop hook)",
+      "audiences": [],
+      "note": "ADR-0001: rule-only agents never get this (no hook to honor markers); hook-driven agents only once their hooks extract markers from the response — flip to [\"hook-driven\"] when per-agent marker adapters land. The section carries `hwip-branch` blocks the Claude Code SessionStart hook selects between by push dial; any future extraction must strip them. Because it is excluded, the included sections must not reference the Push Signal or the push-mode dial — the CLI harnesses receive neither, so such a sentence is an unfollowable instruction there (tests/test-extract-core.sh enforces this)."
+    },
+    {
+      "heading": "### When hwip_ask is MANDATORY",
+      "audiences": ["hook-driven", "rule-only"]
+    },
+    {
+      "heading": "### When hwip_ask is the DEFAULT (substantial work)",
+      "audiences": ["hook-driven", "rule-only"]
+    },
+    {
+      "heading": "### Handling the response",
+      "audiences": ["hook-driven", "rule-only"]
+    },
+    {
+      "heading": "### Sticky REMOTE mode (Rule 9)",
+      "audiences": ["hook-driven", "rule-only"]
+    },
+    {
+      "heading": "### When to use AskUserQuestion vs hwip_ask",
+      "audiences": ["hook-driven", "rule-only"]
+    },
+    {
+      "heading": "### Mute",
+      "audiences": [],
+      "note": "/hwip-mode is a Claude Code slash command; other agents have no equivalent dial UI. Not injected by the Claude Code SessionStart hook either — it is a user command catalog, carried by the hwip-mode skill and README, not an agent behavior."
+    },
+    {
+      "heading": "### Persistence",
+      "audiences": ["hook-driven", "rule-only"]
+    }
+  ]
+}

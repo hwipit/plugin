@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "hwip",
+  "description": "AI agent notifications via Hwip — send push notifications, request decisions, and collect input from users across devices.",
+  "owner": {
+    "name": "hwipit",
+    "url": "https://github.com/hwipit"
+  },
+  "plugins": [
+    {
+      "name": "hwip",
+      "description": "Push notifications, interactive prompts, and text input for AI agents via Hwip MCP server.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

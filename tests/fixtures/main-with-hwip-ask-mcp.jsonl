@@ -1,0 +1,7 @@
+{"type":"system","message":{"role":"system","content":"sys"}}
+{"type":"user","message":{"role":"user","content":"finish and ask"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Read","input":{"file_path":"x"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"mcp__plugin_hwip_hwip__hwip_ask","input":{"title":"Done. Next?"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"continue"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"acknowledged."}],"stop_reason":"end_turn"}}

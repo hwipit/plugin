@@ -1,0 +1,17 @@
+{"type":"system","message":{"role":"system","content":"sys"}}
+{"type":"user","message":{"role":"user","content":"first turn — 5 tools"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"c","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"d","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"d","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"e","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"e","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"first done."}],"stop_reason":"end_turn"}}
+{"type":"user","message":{"role":"user","content":"second turn — 1 tool only"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"f","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"f","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"second done."}],"stop_reason":"end_turn"}}

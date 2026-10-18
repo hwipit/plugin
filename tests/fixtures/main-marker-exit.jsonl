@@ -1,0 +1,7 @@
+{"type": "system", "message": {"role": "system", "content": "sys"}}
+{"type": "user", "message": {"role": "user", "content": "스크래치 파일 좀 정리해줘"}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "a", "name": "Read", "input": {}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "a", "content": "x"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "tool_use", "id": "b", "name": "Edit", "input": {}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "b", "content": "x"}]}}
+{"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Cleaned up the scratch files. <!-- hwip: exit -->"}], "stop_reason": "end_turn"}}

@@ -1,0 +1,5 @@
+{"type":"system","message":{"role":"system","content":"sys"}}
+{"type":"user","message":{"role":"user","content":"태그 밀어줘"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Bash","input":{"command":"git push --tags"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"ok"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"pushed the tag\n<!-- hwip:\npush -->"}],"stop_reason":"end_turn"}}

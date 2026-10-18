@@ -1,0 +1,7 @@
+{"type":"system","message":{"role":"system","content":"You are Claude Code. (system prompt as string content — would crash older jq predicates)"}}
+{"type":"user","message":{"role":"user","content":"README 한 줄 고쳐줘"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Read","input":{"file_path":"package.json"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"{...}"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"Edit","input":{"file_path":"README.md"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"# Hwip"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"all good — both files exist."}],"stop_reason":"end_turn"}}

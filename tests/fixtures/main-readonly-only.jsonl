@@ -1,0 +1,7 @@
+{"type":"system","message":{"role":"system","content":"sys"}}
+{"type":"user","message":{"role":"user","content":"이 코드 어디서 쓰는지 찾아봐"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"a","name":"Grep","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"a","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"b","name":"Read","input":{}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"b","content":"x"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"explored — listener.ts uses it, nothing to change."}],"stop_reason":"end_turn"}}

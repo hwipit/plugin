@@ -1,0 +1,10 @@
+Hwip Claude Code plugin
+Copyright 2026 Hyungtak Jin
+
+This product is a fork of zeph-to/plugin
+(https://github.com/zeph-to/plugin), Copyright 2026 tak-bro,
+licensed under the Apache License, Version 2.0.
+Forked from upstream commit 30e86460fd7710748ecdf350ca1d59ee4e2ede34
+(2026-09-25). Upstream git history was not carried over.
+
+Files modified from the original carry the same license. See LICENSE.

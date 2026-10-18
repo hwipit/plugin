@@ -1,0 +1,73 @@
+[
+  { "name": "push-shaped question is denied so it can be re-asked via hwip_ask",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "deny" },
+
+  { "name": "no hook id — two-way tools do not exist, denying would leave no way to ask",
+    "input": { "hookId": false, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "muted — routing to hwip_ask would push around the user's own mute",
+    "input": { "hookId": true, "muted": true, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "option preview present — CORE_RULES carve-out (a), the answer needs the pane",
+    "input": { "hookId": true, "muted": false, "hasPreview": true, "questionChars": 40, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "long question — CORE_RULES carve-out (b), prose rather than buttons",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 401, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "question exactly at the limit is still push-shaped",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 400, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "deny" },
+
+  { "name": "long option text — will not fit a button, the picker is the right UI",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 241, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "option text exactly at the limit still fits",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 240, "replay": false, "remote": true },
+    "expect": "deny" },
+
+  { "name": "replay — the same question came back, so let it through rather than trap the session",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": true, "remote": true },
+    "expect": "allow" },
+
+  { "name": "replay outranks every deny condition at once",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 10, "optionChars": 10, "replay": true, "remote": true },
+    "expect": "allow" },
+
+  { "name": "unparseable input reads as zeros and must not deny",
+    "input": { "hookId": false, "muted": false, "hasPreview": false, "questionChars": 0, "optionChars": 0, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "empty question with a hook id is still a question worth routing",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 0, "optionChars": 0, "replay": false, "remote": true },
+    "expect": "deny" },
+
+  { "name": "muted wins even when the question is perfectly push-shaped",
+    "input": { "hookId": true, "muted": true, "hasPreview": false, "questionChars": 12, "optionChars": 8, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "preview wins even on a short question",
+    "input": { "hookId": true, "muted": false, "hasPreview": true, "questionChars": 5, "optionChars": 5, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "NORMAL — nobody has driven this session from a phone, so the local picker opens",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": false, "remote": false },
+    "expect": "allow" },
+
+  { "name": "NORMAL allows even the most push-shaped question a hook id could see",
+    "input": { "hookId": true, "muted": false, "hasPreview": false, "questionChars": 12, "optionChars": 8, "replay": false, "remote": false },
+    "expect": "allow" },
+
+  { "name": "REMOTE with no hook id is impossible to serve — allow, there is nothing to route to",
+    "input": { "hookId": false, "muted": false, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "allow" },
+
+  { "name": "REMOTE but muted — routing would push around the user's own mute",
+    "input": { "hookId": true, "muted": true, "hasPreview": false, "questionChars": 40, "optionChars": 30, "replay": false, "remote": true },
+    "expect": "allow" }
+]

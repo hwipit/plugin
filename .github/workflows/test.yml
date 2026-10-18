@@ -1,0 +1,43 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  hooks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install hook runtime deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      # Users run the hooks under the system bash 3.2 and BSD tools. The
+      # runner image puts a newer Homebrew bash first on PATH, so pin
+      # `bash` back to /bin/bash for every suite and hook the tests spawn.
+      - name: Pin system bash 3.2
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$RUNNER_TEMP/sysbash"
+          ln -sf /bin/bash "$RUNNER_TEMP/sysbash/bash"
+          echo "$RUNNER_TEMP/sysbash" >> "$GITHUB_PATH"
+
+      - name: Show tool versions
+        run: |
+          bash --version | head -1
+          jq --version
+          command -v timeout || echo "timeout: not installed"
+
+      - name: Run hook tests
+        run: bash tests/run-all.sh
+
+      - name: Validate rules-sync contract
+        run: node scripts/lint-rules-sync.js

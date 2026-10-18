@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "hwip": {
+      "command": "sh",
+      "args": [
+        "-c",
+        "if command -v hwip >/dev/null 2>&1; then exec hwip mcp; else exec npx -y @hwip/cli mcp; fi"
+      ],
+      "env": {
+        "HWIP_API_KEY": "${HWIP_API_KEY:-}"
+      }
+    }
+  }
+}
