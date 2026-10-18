@@ -18,7 +18,8 @@
 #          (a permission prompt or a question was answered).
 #
 # Never slows Claude Code down: herdr runs in the background, failures are
-# ignored, and a state equal to the last one reported is not sent again.
+# ignored, and a state equal to the last one reported is not sent again — unless
+# herdr restarted since, which drops every report it held.
 
 # Hook input: only SessionStart's `source` is read, so only `start` keeps it. Every
 # other event drains it — with `cat`, not a builtin `read`: PostToolUse input carries
@@ -44,15 +45,21 @@ event="${1:-}"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hwip"
 state_file="$state_dir/herdr-${TMUX_PANE//[^A-Za-z0-9]/_}"
 
-last_seq=0 last_state='' last_pane=''
-[ -f "$state_file" ] && read -r last_seq last_state last_pane <"$state_file"
-# A seq that is not a number is no seq: `$((last_seq + 1))` would run `a[$(cmd)]`. The other two
-# fields are only compared as strings.
+last_seq=0 last_state='' last_pane='' last_sock=''
+# The socket is last: `read` gives the final name the rest of the line, so a path with spaces survives.
+[ -f "$state_file" ] && read -r last_seq last_state last_pane last_sock <"$state_file"
+# A seq that is not a number is no seq: `$((last_seq + 1))` would run `a[$(cmd)]`. The other
+# fields are only compared as strings or tested as a path.
 case "$last_seq" in '' | *[!0-9]*) last_seq=0 ;; esac
+# herdr forgets every report when it restarts, and it recreates its socket when it starts, so a
+# socket newer than the last report means that report is gone: send the state again. A `test`
+# builtin — no fork on the hot path below.
+restarted=''
+[ -n "$last_sock" ] && [ "$last_sock" -nt "$state_file" ] && restarted=1 last_state=''
 
 # The hot path: every tool call lands here. Skip the tmux round trip unless it
 # can change something.
-[ "$event" = tool ] && [ "$last_state" != blocked ] && exit 0
+[ "$event" = tool ] && [ -z "$restarted" ] && [ "$last_state" != blocked ] && exit 0
 
 command -v tmux >/dev/null 2>&1 || exit 0
 # A tmux that never answers must not eat the hook's 5 s cap (plugin.json): bound
@@ -62,10 +69,11 @@ command -v tmux >/dev/null 2>&1 || exit 0
 # nothing never loads it.
 . "$(dirname "${BASH_SOURCE[0]}")/gate.sh"
 hwip_bound_prefix 2
-# Unit separator, not tab: tab is IFS whitespace, so an empty field would collapse into its neighbour.
-sep=$'\x1f'
-IFS="$sep" read -r pane sock bin < <(
-    "${HWIP_BOUND[@]}" tmux display-message -p -t "$TMUX_PANE" "#{@hwip_herdr_pane}${sep}#{@hwip_herdr_socket}${sep}#{@hwip_herdr_bin}" 2>/dev/null
+# One option per line. Not tab: tab is IFS whitespace, so an empty field would collapse into its
+# neighbour. Not another control character: `display-message -p` prints one as a literal octal
+# escape (`\x1f` -> `\037`, tmux 3.5a), so the three values arrived as one.
+{ IFS= read -r pane; IFS= read -r sock; IFS= read -r bin; } < <(
+    "${HWIP_BOUND[@]}" tmux display-message -p -t "$TMUX_PANE" $'#{@hwip_herdr_pane}\n#{@hwip_herdr_socket}\n#{@hwip_herdr_bin}' 2>/dev/null
 )
 [ -n "${pane:-}" ] && [ -n "${sock:-}" ] || exit 0
 [ -n "${bin:-}" ] && [ -x "$bin" ] || bin="$(command -v herdr)" || exit 0
@@ -94,7 +102,7 @@ if [ "$state" = released ]; then
     rm -f "$state_file"
     set -- pane release-agent "$pane" --source hwip --agent 'hwip cc' --seq "$seq"
 else
-    printf '%s %s %s\n' "$seq" "$state" "$pane" >"$state_file"
+    printf '%s %s %s %s\n' "$seq" "$state" "$pane" "$sock" >"$state_file"
     set -- pane report-agent "$pane" --source hwip --agent 'hwip cc' --state "$state" --seq "$seq"
 fi
 

@@ -18,9 +18,11 @@ STUB_DIR="$WORK/stub"
 LOG="$WORK/herdr.log"
 mkdir -p "$STUB_DIR"
 
+# Like tmux 3.5a `display-message -p`: a control character other than tab or
+# newline comes out as a literal octal escape (`\x1f` -> `\037`).
 cat > "$STUB_DIR/tmux" <<'EOF'
 #!/bin/bash
-printf '%b\n' "$OPTS"
+printf '%b\n' "$OPTS" | perl -pe 's/([\x00-\x08\x0b-\x1f\x7f])/sprintf("\\%03o", ord $1)/ge'
 EOF
 cat > "$STUB_DIR/herdr" <<EOF
 #!/bin/bash
@@ -37,7 +39,7 @@ check() {
     else echo "  ✗ $desc"; echo "      expected: $expected"; echo "      actual:   $actual"; FAIL=$((FAIL + 1)); FAILED_TESTS+=("$desc"); fi
 }
 
-IN_HERDR="wF:p1\x1f/sock\x1f$STUB_DIR/herdr"
+IN_HERDR="wF:p1\n/sock\n$STUB_DIR/herdr"
 
 # Run the hook, then wait for the detached herdr call (or give up quietly).
 run() {
@@ -60,7 +62,7 @@ echo "no-ops"
 reset
 OPTS="$IN_HERDR" T='' run working
 check "outside tmux: nothing sent" 0 "$(calls)"
-OPTS="\x1f\x1f" run working
+OPTS="\n\n" run working
 check "tmux session without herdr options: nothing sent" 0 "$(calls)"
 OPTS="$IN_HERDR" run tool
 check "tool call with nothing blocked: nothing sent" 0 "$(calls)"
@@ -106,17 +108,37 @@ check "non-numeric seq in the state file: not executed" 0 "$([ -e "$WORK/PWNED" 
 check "non-numeric seq in the state file: still reported" "/sock pane report-agent wF:p1 --source hwip --agent hwip cc --state working --seq N" "$(last)"
 check "state file rewritten with a number" 1 "$(awk '{print ($1 ~ /^[0-9]+$/) ? 1 : 0}' "$WORK/tmp/hwip/herdr-_1")"
 
+echo "herdr restart"
+# herdr drops every report when it restarts and recreates its socket when it starts. A state equal
+# to the last one reported is resent once the socket is newer than that report.
+reset
+SOCK="$WORK/herdr.sock"; : > "$SOCK"
+OPTS="wF:p1\n$SOCK\n$STUB_DIR/herdr" run idle
+OPTS="wF:p1\n$SOCK\n$STUB_DIR/herdr" run idle
+check "same state, same herdr: not resent" 1 "$(calls)"
+touch -t 200001010000 "$WORK/tmp/hwip/herdr-_1"; touch -t 200101010000 "$SOCK"
+OPTS="wF:p1\n$SOCK\n$STUB_DIR/herdr" run idle
+check "same state after a herdr restart: resent" 2 "$(calls)"
+reset
+: > "$SOCK"
+OPTS="wF:p1\n$SOCK\n$STUB_DIR/herdr" run working
+touch -t 200001010000 "$WORK/tmp/hwip/herdr-_1"; touch -t 200101010000 "$SOCK"
+OPTS="wF:p1\n$SOCK\n$STUB_DIR/herdr" run tool
+check "tool call after a herdr restart: working resent" "2 $SOCK pane report-agent wF:p1 --source hwip --agent hwip cc --state working --seq N" "$(calls) $(last)"
+OPTS="wF:p1\n$SOCK\n$STUB_DIR/herdr" run tool
+check "next tool call: not resent" 2 "$(calls)"
+
 echo "reattach"
 reset
 OPTS="$IN_HERDR" run working
-OPTS="wF:p9\x1f/sock\x1f$STUB_DIR/herdr" run working
+OPTS="wF:p9\n/sock\n$STUB_DIR/herdr" run working
 check "same state, new herdr pane: reported there" "/sock pane report-agent wF:p9 --source hwip --agent hwip cc --state working --seq N" "$(last)"
 
 echo "bounds"
 # herdr installed under a path with a space: the hook runs it as an array.
 reset
 SP="$WORK/with space"; mkdir -p "$SP"; cp "$STUB_DIR/herdr" "$SP/herdr"
-OPTS="wF:p1\x1f/sock\x1f$SP/herdr" run working
+OPTS="wF:p1\n/sock\n$SP/herdr" run working
 check "herdr path with a space: reported" "/sock pane report-agent wF:p1 --source hwip --agent hwip cc --state working --seq N" "$(last)"
 
 # A tmux that never answers is cut at 2 s, by whichever bound the machine has:
@@ -147,9 +169,9 @@ fi
 echo "options"
 # An empty or non-executable bin option: herdr from PATH (the stub dir is on PATH).
 reset
-OPTS="wF:p1\x1f/sock\x1f" run working
+OPTS="wF:p1\n/sock\n" run working
 check "no bin option: herdr from PATH" "/sock pane report-agent wF:p1 --source hwip --agent hwip cc --state working --seq N" "$(last)"
-OPTS="wF:p1\x1f/sock\x1f$WORK/not-there" run idle
+OPTS="wF:p1\n/sock\n$WORK/not-there" run idle
 check "bin option not executable: herdr from PATH" "/sock pane report-agent wF:p1 --source hwip --agent hwip cc --state idle --seq N" "$(last)"
 # start re-claims the pane even when the state did not change (a restarted session).
 reset
@@ -170,7 +192,7 @@ check "start from a fresh session: claims the pane" "/sock pane report-agent wF:
 
 echo "empty fields"
 reset
-OPTS="\x1f/sock\x1f$STUB_DIR/herdr" run working
+OPTS="\n/sock\n$STUB_DIR/herdr" run working
 check "empty pane with a socket: not read as pane=socket" 0 "$(calls)"
 
 echo

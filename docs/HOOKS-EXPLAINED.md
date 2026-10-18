@@ -567,7 +567,8 @@ labelled `claude`, the name of an agent it supports natively (measured on herdr 
 as tmux session options — `@hwip_herdr_pane`, `@hwip_herdr_socket`,
 `@hwip_herdr_bin` (the values of `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`,
 `HERDR_BIN_PATH`) — and clears them on an attach from outside herdr. The hook reads
-them with one `tmux display-message`. No options means no herdr, so the hook does
+them with one `tmux display-message`, one value per line: `display-message -p` prints
+any other control character as a literal octal escape (`\x1f` -> `\037`, tmux 3.5a). No options means no herdr, so the hook does
 nothing, including for plain `claude` in a herdr pane, which herdr detects on its
 own, and for a CLI that does not write the options yet. It also no-ops for a
 headless `claude -p` (`CLAUDE_CODE_ENTRYPOINT=sdk-cli`): one started from a shell in
@@ -594,7 +595,9 @@ it; whether such panes exist, and carry a signal to tell them apart, is unverifi
 
 **Cost.** PostToolUse runs on every tool call, so its common case exits after
 reading one state file in `$HWIP_STATE_DIR` (`herdr-<pane>`, per-user like the other state files), before any tmux call. A state equal
-to the last one sent is not resent, and `herdr` runs detached (as an array, so a
+to the last one sent is not resent — unless herdr has restarted since, which drops every
+report it held: herdr recreates its socket when it starts, so a socket newer than the
+state file sends the state again (a `test -nt`, no fork, so the tool-call path stays cheap). And `herdr` runs detached (as an array, so a
 `herdr` path with a space works). The one blocking call, `tmux display-message`, is
 cut at 2 s by `timeout`, `gtimeout` or perl (gate.sh `hwip_bound_prefix`, the same bound
 the other hooks put on their calls), well inside the hook's 5 s cap. `--seq` is
