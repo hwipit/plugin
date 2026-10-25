@@ -1,6 +1,6 @@
 {
   "name": "hwip-plugin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Hwip Claude Code plugin — hooks, skills, and behavioral rules",
   "repository": {
