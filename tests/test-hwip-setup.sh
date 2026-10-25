@@ -103,6 +103,9 @@ assert "names what starts REMOTE"              ctx_has "What starts REMOTE"
 assert "names the phone's send-and-exit"       ctx_has '"send and exit"'
 assert "ends send-and-exit with no ask"        ctx_has 'carry it out, no `hwip_ask`'
 assert "keeps Rule 13 (compaction)"            ctx_has "after context compaction"
+# Rules 7·8 govern only a hwip_ask answer; hooks/hwip-ask-result.js hands them
+# over with the first hwip_ask result (tests/test-hwip-ask-result.sh).
+assert_not "NORMAL leaves rules 7·8 to the hwip_ask result" ctx_has "### Handling the response"
 # Rules 3/4/5/6/10/11 are REMOTE-scoped. Injecting them here is the regression
 # that made a terminal session block on a phone answer nobody was there to give.
 assert_not "no MANDATORY-ask rule"             ctx_has "NEVER end a response"
@@ -135,6 +138,7 @@ assert "says the session is in REMOTE"         ctx_has "this session is in REMOT
 assert "carries the sticky-REMOTE contract"    ctx_has "State Detection"
 assert "carries the MANDATORY-ask rule"        ctx_has "NEVER end a response"
 assert "carries the AskUserQuestion override"  ctx_has "MUST go through"
+assert "carries rules 7·8 (every turn asks)"   ctx_has "### Handling the response"
 assert "carries the exit marker"               ctx_has "hwip: exit"
 assert "keeps Rule 13 (compaction)"            ctx_has "after context compaction"
 assert_not "no Push Signal section (ignored in REMOTE)" ctx_has "### Push Signal"

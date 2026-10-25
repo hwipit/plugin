@@ -11,6 +11,7 @@ The plugin installs these hooks (`.claude-plugin/plugin.json`), which fire autom
 | Hook | Event | File | Purpose |
 |------|-------|------|---------|
 | **SessionStart** | Session begins | hwip-setup.js | Inject behavioral rules into context |
+| **PostToolUse** (Ask result) | After `hwip_ask` returns | hwip-ask-result.js | Hand rules 7·8 (handling the answer) over with the first `hwip_ask` result of a session context |
 | **Stop** | Response ends | hwip-stop.sh | Send completion notification if work was done |
 | **PreToolUse** (Ask) | Before AskUserQuestion | hwip-ask.sh | Send notification when Claude asks user a question |
 | **PreToolUse** (Approve) | Before Bash | hwip-approve.sh | Opt-in: hold a hard-to-undo command until the user approves it from the phone |
@@ -63,7 +64,7 @@ T=$(ls -t ~/.claude/projects/*/*.jsonl | head -1)
 | `/hwip-mode mute` marker for this project | three lines: hooks are silent, don't call the tools unless asked | ~220 B |
 | No hook id (`HWIP_HOOK_ID` env or `hookId` in `~/.hwip/config.json`) | one-way notify discipline (`hwip_ask` does not exist) | ~1.3 KB |
 | Sticky REMOTE live (`remote-active-<hash>`) | the sticky-REMOTE contract in full — Rules 1-3, 7-11, 13 (Rule 4 is subsumed by Rule 9 there) — and no Push Signal, since markers are ignored on a turn that already sent `hwip_ask` | ~7.4 KB |
-| Otherwise | the NORMAL branch: notify discipline, Push Signal, and what starts REMOTE. No ask rules — every one of them is REMOTE-scoped, so a session at the terminal never blocks on a phone answer | ~3.1–3.6 KB |
+| Otherwise | the NORMAL branch: notify discipline, Push Signal, and what starts REMOTE. No ask rules — every one of them is REMOTE-scoped, so a session at the terminal never blocks on a phone answer. Rules 7·8 (handling a `hwip_ask` answer) come with the first `hwip_ask` result instead ([Ask-Result Hook](#ask-result-hook-hwip-ask-resultjs)) | ~2.7–3.0 KB |
 
 The Push Signal section follows the project's push-mode dial: on `quiet` (the
 stock default) only the `high` marker does anything, so only that one is
@@ -109,6 +110,46 @@ ls -la /path/to/plugin/docs/CORE_RULES.md
 ls -la ~/.hwip/config.json
 echo $HWIP_API_KEY
 ```
+
+---
+
+## Ask-Result Hook (hwip-ask-result.js)
+
+**What it does:** hands rules 7·8 ("Handling the response" in `CORE_RULES.md`)
+to the model with the first `hwip_ask` result of a session context. Those rules
+only govern what to do with a `hwip_ask` answer, so the NORMAL SessionStart
+text leaves them out, and a session that never calls `hwip_ask` never pays for them.
+
+**When it runs:** PostToolUse, matcher `^mcp__.*__hwip_ask$` (the plugin's
+`mcp__plugin_hwip_hwip__hwip_ask` and a standalone `mcp__hwip__hwip_ask`).
+Claude Code attaches the hook's `additionalContext` to the tool result. When
+the call outlives 120 s and moves to the background, Claude Code attaches it to
+the background-move result instead, so the rules land before the answer either way
+(probed against Claude Code 2.1.310, interactive and `-p`).
+
+**Once per session context.** The mark `handling-injected-<session_id>` sits
+beside `remote-injected-<session_id>`:
+
+- Every SessionStart (startup, resume, clear, compact) removes it.
+- SessionStart writes it (content `session-start`) when it ships the REMOTE
+  contract, which carries rules 7·8 already. That mark holds until the next start.
+- This hook writes it (content `ask`) after the rules went out. That mark holds
+  for 30 minutes. `/rewind` or a conversation restore can drop the result that
+  carried the rules, and no SessionStart fires to say so. The bound keeps such a
+  session at most half an hour from getting them again.
+- A subagent's call (hook input with `agent_id`) neither reads nor writes it. The
+  rules land in the subagent's context, so the main context's next `hwip_ask`
+  still gets them.
+
+It fails open. With no readable `session_id`, or a mark that cannot be written,
+it injects every time. It writes the mark only after the output went out. With an
+unreadable `CORE_RULES.md`, or no "Handling the response" heading, it injects
+nothing, since there is no text to hand over. It leaves no mark and says why on
+stderr, like SessionStart does.
+
+The hook reads its input blocking (`tty.isatty`, not `process.stdin`) and whole,
+because Claude Code always pipes and closes it. `hwip-setup.js` keeps its
+non-blocking read, because `scripts/hwip-mode.sh` runs it with the caller's stdin.
 
 ---
 

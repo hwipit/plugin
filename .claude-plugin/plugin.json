@@ -94,6 +94,16 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "^mcp__.*__hwip_ask$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hwip-ask-result.js\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "hooks": [
           {
             "type": "command",

@@ -102,6 +102,11 @@ REMOTE 에 들어가고, 마커 없는 프롬프트(터미널 입력)가 오면 
              └─ Push Signal은 push-mode 다이얼(quiet/normal/loud)에 맞춰 선택
 ```
 
+규칙 7·8(`hwip_ask` 답 다루기)은 NORMAL 분기에 넣지 않는다. 대신 그 컨텍스트에서 처음 돌아온
+`hwip_ask` 결과에 PostToolUse 훅(`hwip-ask-result.js`)이 한 번 붙인다. 120초를 넘겨 백그라운드로 옮겨진
+호출도 옮겨졌다는 결과에 붙어서, 답보다 먼저 모델에 닿는다. 마크 `handling-injected-<session_id>`는
+`remote-injected-`와 같은 생애를 따른다. SessionStart 가 매번 지우고, REMOTE 전문을 실을 때 새로 쓴다.
+
 **분기하는 이유:** Claude Code는 훅의 `additionalContext`가 10,000자를 넘으면
 파일로 옮기고 모델에는 2,000자 프리뷰만 넣는다 (`cli.js` `k$d=1e4`, `hFr=2000`).
 무조건 주입하던 단일 블록은 15,483 바이트여서 첫 2KB 아래 규칙은 모델에
