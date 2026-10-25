@@ -122,9 +122,10 @@ assert "no dial → quiet, high is the channel" ctx_has "push dial is **quiet**"
 assert_not "quiet hides the skip marker"      ctx_has "hwip: skip"
 # Every NORMAL session pays for this block, so it stays short — but keeps each
 # fact: only high pushes, skip/push are inert, once on an awaited completion,
-# never routine, not on a hwip_ask turn, not to reach someone away.
+# never routine, not on a hwip_ask turn, not to reach someone away. Counted in
+# code points by node, so the runner's locale cannot change the number.
 QUIET=$(printf '%s\n' "$CTX" | awk '/^### Push Signal/{on=1; print; next} on && /^### /{exit} on')
-assert "quiet Push Signal fits in 400 chars"  test "$(printf '%s' "$QUIET" | wc -m)" -le 400
+assert "quiet Push Signal fits in 400 chars"  test "$(printf '%s' "$QUIET" | node -e 'process.stdout.write(String([...require("fs").readFileSync(0, "utf-8")].length))')" -le 400
 for fact in 'only `<!-- hwip: high -->`' '`skip`/`push` do nothing' 'once on a completion' 'never on routine work' 'a `hwip_ask` turn ignores it' 'never emit `high` to reach them'; do
     assert "…still says $fact"                grep -qF -- "$fact" <<<"$QUIET"
 done
