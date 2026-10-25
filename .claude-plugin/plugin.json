@@ -1,6 +1,6 @@
 {
   "name": "hwip",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "AI agent notifications via Hwip — notify and ask across devices",
   "author": {
     "name": "hwipit",
@@ -93,6 +93,16 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "^mcp__.*__hwip_ask$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/hwip-ask-result.js\"",
+            "timeout": 5
+          }
+        ]
+      },
       {
         "hooks": [
           {

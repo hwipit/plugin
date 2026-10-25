@@ -30,6 +30,10 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, execSync } = require('child_process');
 const { readLastPushFailure, describeLastPushFailure, takeKeyChanges, describeKeyChange } = require('./notify-failure');
+const {
+    readCoreRules, section: sliceSection, pickBranch, HANDLING_HEADING,
+    STATE_DIR, SAFE_SESSION_ID, HANDLING_MARK_PREFIX, HANDLING_MARK_BY_SESSION_START,
+} = require('./core-rules');
 
 const configFile = path.join(os.homedir(), '.hwip', 'config.json');
 let config = {};
@@ -82,7 +86,6 @@ if (!apiKey) {
 // try/catch: an unreadable state dir must resolve to the NORMAL branch, never
 // to "emit everything" (which is the failure this rewrite exists to remove).
 
-const STATE_DIR = path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local', 'state'), 'hwip');
 const REMOTE_TTL_SEC = 14400;
 const PUSHMODE_DEFAULT = 'quiet';
 
@@ -160,7 +163,7 @@ const readState = () => {
 
 let coreRules = '';
 try {
-    coreRules = fs.readFileSync(path.join(__dirname, '..', 'docs', 'CORE_RULES.md'), 'utf-8');
+    coreRules = readCoreRules();
 } catch (err) {
     // Surface the real cause on stderr so a broken install is visible, not silent.
     process.stderr.write(`[hwip-setup] Could not read docs/CORE_RULES.md: ${err.message}\n`);
@@ -171,32 +174,9 @@ corrupted or partially installed. Reinstall with:
   claude plugin uninstall hwip@hwip && claude plugin marketplace add hwipit/plugin`;
 }
 
-// One `###`/`####` section, heading included, up to the next heading of the
-// same or a higher level. Missing heading → empty string: a rename in
-// CORE_RULES.md must drop one section, not crash the session's first turn.
-const section = (heading) => {
-    const level = heading.match(/^#+/)[0].length;
-    const lines = coreRules.split('\n');
-    const start = lines.findIndex((l) => l.trim() === heading);
-    if (start === -1) return '';
-    let end = lines.length;
-    for (let i = start + 1; i < lines.length; i++) {
-        const m = lines[i].match(/^(#+) /);
-        if (m && m[1].length <= level) { end = i; break; }
-    }
-    return lines.slice(start, end).join('\n').replace(/\n+---\s*$/, '').trim();
-};
-
-// Resolve the `<!-- hwip-branch: NAME -->` blocks a section carries: keep the
-// one that matches this session's state, drop the rest and every marker.
-// `<!-- hwip-doc-only -->` blocks explain the branching to a human reading
-// CORE_RULES.md and are never injected.
-const pickBranch = (text, keep) => text
-    .replace(/<!-- hwip-branch: ([\w-]+) -->\n([\s\S]*?)\n<!-- \/hwip-branch -->\n?/g,
-        (_, name, body) => (name === keep ? `${body}\n` : ''))
-    .replace(/<!-- hwip-doc-only -->\n[\s\S]*?\n<!-- \/hwip-doc-only -->\n?/g, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+// Slicing and branch resolution live in core-rules.js, shared with the
+// PostToolUse hook on hwip_ask.
+const section = (heading) => sliceSection(coreRules, heading);
 
 const pushSignal = (pushmode) => pickBranch(
     section('### Push Signal — steer the end-of-turn auto-push (Stop hook)'),
@@ -221,7 +201,9 @@ const oneWay = (pushmode) => {
 };
 
 // The NORMAL branch owes no `hwip_ask` at all, so it does not carry Rules
-// 3/4/5/6/10/11 — every one of them is REMOTE-scoped. What it needs is the
+// 3/4/5/6/10/11 — every one of them is REMOTE-scoped. Rules 7·8 (Handling the
+// response) govern only a `hwip_ask` answer, so they arrive with the first
+// `hwip_ask` result instead (hooks/hwip-ask-result.js, PostToolUse). What it needs is the
 // trigger: what flips the session, and what that turns on. The turn a phone
 // message arrives, the UserPromptSubmit hook injects Rule 9 in full from
 // CORE_RULES.md; a `hwip_ask` answer that reports `hwipState: "REMOTE"` flips
@@ -238,7 +220,6 @@ const normal = (pushmode) => join([
     'Hwip can hand this session to the user\'s phone, but nobody has done that yet. **You owe no `hwip_ask`**: ask questions with `AskUserQuestion` or in prose, and let the Stop hook\'s push be the completion signal. A `hwip_ask` here blocks the turn until someone answers on a device or it times out.',
     section('### Notification discipline'),
     pushSignal(pushmode),
-    section('### Handling the response'),
     REMOTE_STUB,
     section('### Persistence'),
 ]);
@@ -253,7 +234,7 @@ const remote = () => join([
     "The user is driving this session from their phone and is NOT at the terminal. Buttons sent via `hwip_ask` are how they steer you; a plain-text question is invisible to them.",
     section('### Notification discipline'),
     section('### When hwip_ask is MANDATORY'),
-    section('### Handling the response'),
+    section(HANDLING_HEADING),
     section('### Sticky REMOTE mode (Rule 9)'),
     section('### When to use AskUserQuestion vs hwip_ask'),
     section('### Persistence'),
@@ -263,61 +244,64 @@ const remote = () => join([
 
 const state = readState();
 
-// ── "Rule 9 given" mark ─────────────────────────────────────────────────────
-// hooks/hwip-remote.sh sends a short reminder instead of the full sticky-REMOTE
-// contract to a session marked `remote-injected-<session_id>` (see its header).
-// Whether a session holds the full text is decided here too: every SessionStart
-// (startup, resume, clear, compact) drops the mark, because compaction and a
-// fresh context lose the text, and sets it again only when THIS hook ships the
-// REMOTE contract in full. Marks of sessions long gone are pruned on the way.
-const INJECTED_PREFIX = 'remote-injected-';
-const INJECTED_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
+// ── Per-session "given" marks ──────────────────────────────────────────────
+// Two hooks skip text a session already holds, keyed by a mark per session:
+//   remote-injected-<sid>   hooks/hwip-remote.sh sends a short reminder instead
+//                           of the full sticky-REMOTE contract (see its header)
+//   handling-injected-<sid> hooks/hwip-ask-result.js does not hand rules 7·8
+//                           over again with the next hwip_ask result
+// Whether a session holds the text is decided here too: every SessionStart
+// (startup, resume, clear, compact) drops both marks, because compaction and a
+// fresh context lose the text, and sets one again only when THIS hook ships
+// that text. Marks of sessions long gone are pruned on the way.
+const REMOTE_MARK_PREFIX = 'remote-injected-';
+const MARK_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
 
 const readSessionId = () => {
     try {
         if (process.stdin.isTTY) return '';
         const id = JSON.parse(fs.readFileSync(0, 'utf-8')).session_id;
-        return typeof id === 'string' && /^[A-Za-z0-9_-]+$/.test(id) ? id : '';
+        return typeof id === 'string' && SAFE_SESSION_ID.test(id) ? id : '';
     } catch { return ''; }
 };
 
-const injectedMarks = () => {
-    try { return fs.readdirSync(STATE_DIR).filter((n) => n.startsWith(INJECTED_PREFIX)); } catch { return []; }
+const marks = (prefix) => {
+    try { return fs.readdirSync(STATE_DIR).filter((n) => n.startsWith(prefix)); } catch { return []; }
 };
 
 // Each step is its own best-effort: a failed prune (two starts racing for the
 // same old mark) must not keep this session's own stale mark from being removed.
-const attempt = (fn) => { try { fn(); } catch { /* no mark just means the full text goes out again */ } };
+const attempt = (fn) => { try { fn(); } catch { /* no mark just means the text goes out again */ } };
 
-const syncInjectedMark = (sessionId, shipsFullRemote) => {
+const syncMark = (prefix, sessionId, shipsText, content = '') => {
     // No readable session id: the mark cannot be addressed, so none may survive —
-    // a kept one would leave some session holding a reminder with no full text.
+    // a kept one would leave some session skipping text it does not hold.
     if (!sessionId) {
-        for (const name of injectedMarks()) attempt(() => fs.rmSync(path.join(STATE_DIR, name), { force: true }));
+        for (const name of marks(prefix)) attempt(() => fs.rmSync(path.join(STATE_DIR, name), { force: true }));
         return;
     }
-    const mark = path.join(STATE_DIR, INJECTED_PREFIX + sessionId);
+    const mark = path.join(STATE_DIR, prefix + sessionId);
     attempt(() => fs.rmSync(mark, { force: true }));
-    if (shipsFullRemote) {
+    if (shipsText) {
         attempt(() => {
             fs.mkdirSync(STATE_DIR, { recursive: true });
-            fs.writeFileSync(mark, '');
+            fs.writeFileSync(mark, content);
         });
     }
-    for (const name of injectedMarks()) {
+    for (const name of marks(prefix)) {
         attempt(() => {
             const file = path.join(STATE_DIR, name);
-            if (Date.now() - fs.statSync(file).mtimeMs > INJECTED_MAX_AGE_MS) fs.unlinkSync(file);
+            if (Date.now() - fs.statSync(file).mtimeMs > MARK_MAX_AGE_MS) fs.unlinkSync(file);
         });
     }
 };
 
-// Marked only when Rule 9 really goes out: an unreadable CORE_RULES.md makes
+// Marked only when the text really goes out: an unreadable CORE_RULES.md makes
 // section() return '' and remote() would ship the contract without it.
-syncInjectedMark(
-    readSessionId(),
-    !state.muted && !!hookId && state.remote && section('### Sticky REMOTE mode (Rule 9)') !== '',
-);
+const sessionId = readSessionId();
+const shipsRemote = !state.muted && !!hookId && state.remote;
+syncMark(REMOTE_MARK_PREFIX, sessionId, shipsRemote && section('### Sticky REMOTE mode (Rule 9)') !== '');
+syncMark(HANDLING_MARK_PREFIX, sessionId, shipsRemote && section(HANDLING_HEADING) !== '', HANDLING_MARK_BY_SESSION_START);
 
 // The CLI's record of its last failed push (hooks/notify-failure.js). The
 // hooks discard notify's stderr, so this is the only place a revoked key or a

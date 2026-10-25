@@ -193,6 +193,7 @@ Hwip is three cooperating layers. Hooks fire whether or not the model cooperates
 ```
 hwipit/plugin (Claude Code plugin)
   ├─ hooks/hwip-setup.js   → SessionStart: inject the behavioral rules
+  ├─ hooks/hwip-ask-result.js → PostToolUse(hwip_ask): rules for handling the answer, once per context
   ├─ hooks/hwip-stop.sh    → Stop: auto completion push
   ├─ hooks/hwip-ask.sh     → PreToolUse(AskUserQuestion): question push
   ├─ hooks/hwip-approve.sh → PreToolUse(Bash): opt-in phone approval for hard-to-undo commands

@@ -89,6 +89,17 @@ Wall-clock cases, so the suite sleeps for real (~25 s): a stub `tmux` that answe
 | `no CLAUDE_PROJECT_DIR — title falls back to the working directory` | Same fallback as the Stop hook. |
 | `python3 that fails to run — body still carries the question, capped` | The trim fell through to nothing and the push body went out blank; it now falls back to a bash substring. |
 
+### hwip-ask-result.js (`test-hwip-ask-result.sh`)
+
+| Test | Catches |
+|------|---------|
+| `NORMAL leaves rules 7·8 to the hwip_ask result` (`test-hwip-setup.sh`) | The NORMAL SessionStart text carrying "Handling the response" again. Every terminal session paid for rules it only needs after a `hwip_ask`. |
+| `injects rules 7·8 … verbatim from CORE_RULES.md` | The first `hwip_ask` result of a session context carries the section exactly as `CORE_RULES.md` has it, sliced by the same `core-rules.js` reader SessionStart uses. |
+| `second result in the same context: nothing` / `after compact/resume/clear it goes out again` | The `handling-injected-<sid>` mark: one injection per context, re-armed by every SessionStart. |
+| `REMOTE session start already carries rules 7·8` | A SessionStart that ships the REMOTE contract sets the mark, so REMOTE turns, which all end in `hwip_ask`, do not repeat the section. |
+| `fail open` | No stdin, an unsafe session id, an unwritable state dir: the hook injects anyway. A missing rule changes behaviour, while a duplicate only costs chars. With an unreadable `CORE_RULES.md` it injects nothing and leaves no mark. |
+| `drains stdin before exiting` | The early exit on unreadable rules returned before reading the input, and the writer took a SIGPIPE (exit 141). |
+
 ### hwip-setup.js (`systemMessage`)
 
 | Test | Catches |

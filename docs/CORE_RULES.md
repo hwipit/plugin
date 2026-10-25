@@ -27,7 +27,7 @@ Hwip lets the user drive this session from their phone. You are talking to a use
 ### Push Signal — steer the end-of-turn auto-push (Stop hook)
 
 <!-- hwip-branch: pushmode-quiet -->
-This project's push dial is **quiet**, so the Stop hook's heuristic never fires and the `skip`/`push` markers change nothing — `<!-- hwip: high -->` (an HTML comment, invisible in the terminal, stripped from the push body) is the whole channel. Emit it once on a completion the user is genuinely waiting on, never on routine work; it is ignored on a turn that already sent `hwip_ask`. The hook also pushes on its own once the user has been away from the terminal for a while, so never emit `high` just to reach someone who left.
+This project's push dial is **quiet**: no heuristic push, so `skip`/`push` do nothing; only `<!-- hwip: high -->` (HTML comment the hook strips) counts. Emit it once on a completion the user awaits, never on routine work; a `hwip_ask` turn ignores it. The hook pushes on its own once the user is away; never emit `high` to reach them.
 <!-- /hwip-branch -->
 
 <!-- hwip-branch: pushmode-normal-loud -->
@@ -168,5 +168,5 @@ REMOTE begins the moment the user sends a message from their phone; from that tu
 
 ---
 
-**Last updated**: 2026-09-13
+**Last updated**: 2026-10-25
 **Synced across**: plugin, CLAUDE.md, SKILL.md, cli/templates.ts (generated via cli/scripts/sync-from-plugin.mjs)
