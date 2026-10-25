@@ -120,6 +120,14 @@ state_reset
 CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
 assert "no dial → quiet, high is the channel" ctx_has "push dial is **quiet**"
 assert_not "quiet hides the skip marker"      ctx_has "hwip: skip"
+# Every NORMAL session pays for this block, so it stays short — but keeps each
+# fact: only high pushes, skip/push are inert, once on an awaited completion,
+# never routine, not on a hwip_ask turn, not to reach someone away.
+QUIET=$(printf '%s\n' "$CTX" | awk '/^### Push Signal/{on=1; print; next} on && /^### /{exit} on')
+assert "quiet Push Signal fits in 400 chars"  test "$(printf '%s' "$QUIET" | wc -m)" -le 400
+for fact in 'only `<!-- hwip: high -->`' '`skip`/`push` do nothing' 'once on a completion' 'never on routine work' 'a `hwip_ask` turn ignores it' 'never emit `high` to reach them'; do
+    assert "…still says $fact"                grep -qF -- "$fact" <<<"$QUIET"
+done
 echo normal > "$STATE/hwip/pushmode-$PROJECT_HASH"
 CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
 assert "normal dial → all three markers"      ctx_has "hwip: skip"

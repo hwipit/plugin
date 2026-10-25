@@ -64,7 +64,7 @@ T=$(ls -t ~/.claude/projects/*/*.jsonl | head -1)
 | `/hwip-mode mute` marker for this project | three lines: hooks are silent, don't call the tools unless asked | ~220 B |
 | No hook id (`HWIP_HOOK_ID` env or `hookId` in `~/.hwip/config.json`) | one-way notify discipline (`hwip_ask` does not exist) | ~1.3 KB |
 | Sticky REMOTE live (`remote-active-<hash>`) | the sticky-REMOTE contract in full — Rules 1-3, 7-11, 13 (Rule 4 is subsumed by Rule 9 there) — and no Push Signal, since markers are ignored on a turn that already sent `hwip_ask` | ~7.4 KB |
-| Otherwise | the NORMAL branch: notify discipline, Push Signal, and what starts REMOTE. No ask rules — every one of them is REMOTE-scoped, so a session at the terminal never blocks on a phone answer. Rules 7·8 (handling a `hwip_ask` answer) come with the first `hwip_ask` result instead ([Ask-Result Hook](#ask-result-hook-hwip-ask-resultjs)) | ~2.7–3.0 KB |
+| Otherwise | the NORMAL branch: notify discipline, Push Signal, and what starts REMOTE. No ask rules — every one of them is REMOTE-scoped, so a session at the terminal never blocks on a phone answer. Rules 7·8 (handling a `hwip_ask` answer) come with the first `hwip_ask` result instead ([Ask-Result Hook](#ask-result-hook-hwip-ask-resultjs)) | ~2.5–3.0 KB |
 
 The Push Signal section follows the project's push-mode dial: on `quiet` (the
 stock default) only the `high` marker does anything, so only that one is
