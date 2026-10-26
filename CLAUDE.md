@@ -31,8 +31,9 @@ Ask the user with quick-reply buttons AND a text input field combined. Blocks un
 Copy text to the user's device clipboard.
 
 ### hwip_file
-Send a file to the user's device — `filePath` for anything on disk (images, PDFs,
-logs), or `content` + `fileName` for generated text.
+Send files to the user's device — `filePath` for anything on disk (images, PDFs,
+logs), `filePaths` for several at once (one call, one message — never a call per
+screenshot), or `content` + `fileName` for generated text.
 
 ## Utility Tools
 
