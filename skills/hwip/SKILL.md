@@ -86,11 +86,15 @@ Copy text to the user's device clipboard.
 - User needs to paste something elsewhere
 
 ### hwip_file
-Send a file to the user's device. Pass `filePath` for a file that already exists
-on disk, or `content` + `fileName` for text you generated.
+Send files to the user's device. Pass `filePath` for a file that already exists
+on disk, `filePaths` for several of them, or `content` + `fileName` for text you
+generated.
 
 **When to use:**
 - Send an image, screenshot, or PDF — `filePath`, and it renders inline on the device
+- Send several screenshots or files the user asked for — **one call with
+  `filePaths`**, not one call per file: they arrive together in one message
+  (five to a push; more are split in order). Give one `title` for the set
 - Share logs, reports, or generated config files
 - Content too long for a notification body
 
