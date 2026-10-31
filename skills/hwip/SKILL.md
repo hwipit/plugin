@@ -143,7 +143,7 @@ EOF
 ```
 
 ### hwip_agent_list · hwip_agent_read
-See the agent sessions on **this machine**, and read what one of them did last. No
+See the agent sessions on **this machine**, and read what one of them did last. Without `all`, no
 API key, no server, nothing typed into a session. Agents without MCP (pi) use the shell
 form, `hwip agent list` / `hwip agent read`. `hwip_agent_list` with `all: true`
 (`hwip agent list --all`) lists instead every session `hwip_agent_send` can reach on every

@@ -68,7 +68,7 @@ With a Hook ID configured (`hwip install` sets one up automatically), Claude end
 | `hwip_ask` | buttons **+** text input (text only without `actions`) | decisions, next steps, custom instructions, free-form input |
 | `hwip_notify` · `hwip_clipboard` · `hwip_file` | one-way push | when you explicitly ask |
 | `hwip_agent_send` | types a message into another agent session (shell form: `hwip agent send`) | when you ask it to pass something to another agent |
-| `hwip_agent_list` · `hwip_agent_read` | lists the agent sessions on this machine and reads what one did last (this PC only, no API call; shell form: `hwip agent list` / `read`). With `all: true` the list instead covers every machine's sessions, read from the server (`hwip agent list --all`) | when you ask what another agent here is doing, or which session on another PC to send to |
+| `hwip_agent_list` · `hwip_agent_read` | lists the agent sessions on this machine and reads what one did last (without `all`: this PC only, no API call; shell form: `hwip agent list` / `read`). With `all: true` the list instead covers every machine's sessions, read from the server (`hwip agent list --all`) | when you ask what another agent here is doing, or which session on another PC to send to |
 
 > `hwip_ask` needs a Hook ID — issued for you during sign-in and saved to `~/.hwip/config.json`. No env vars.
 
