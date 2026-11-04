@@ -1,0 +1,65 @@
+name: Bug report
+description: A hook, skill or rule in the Hwip Claude Code plugin does not work as expected.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security problems: do not open an issue, follow [SECURITY.md](https://github.com/hwipit/plugin/blob/main/SECURITY.md).
+        Please remove private content (questions, answers, project names, API keys, email addresses) from anything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: Hwip plugin version
+      description: The `version` in the plugin's `.claude-plugin/plugin.json`, or the output of `/plugin`.
+      placeholder: "0.1.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: The plugin targets Claude Code. Pick another entry only if you run the hooks elsewhere.
+      options:
+        - Claude Code
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: agent-version
+    attributes:
+      label: Agent version
+      description: Output of `claude --version`.
+      placeholder: "2.1.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: Include the shell and the bash version if a hook failed (`bash --version`).
+      placeholder: "macOS 15.1, bash 3.2 / Ubuntu 24.04, bash 5.2"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      description: Hook output or terminal text. It is rendered as code.
+      render: shell
+    validations:
+      required: false

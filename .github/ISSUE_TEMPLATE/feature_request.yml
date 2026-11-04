@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest a change or an addition to the Hwip Claude Code plugin.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem do you want solved?
+      description: Describe the situation you are in, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you would like to happen. Alternatives you considered are welcome too.
+    validations:
+      required: false
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: The agent this is about. Rules for other agents live in hwipit/cli.
+      options:
+        - Claude Code
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hwip plugin version
+      placeholder: "0.1.2"
+    validations:
+      required: false
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.1 / Ubuntu 24.04"
+    validations:
+      required: false
