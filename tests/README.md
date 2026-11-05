@@ -132,7 +132,7 @@ Wall-clock cases, so the suite sleeps for real (~25 s): a stub `tmux` that answe
 | Test | Catches |
 |------|---------|
 | `a hwip whose path holds a space` | The hooks kept the CLI as one string and split it again, so `/Users/Jane Doe/…/hwip` started `/Users/Jane`: no push ever left, and every approval was denied. Now an array (`hwip_cli_command`), checked for the approval, stop and ask hooks. |
-| `no hwip, so npx -y @hwip/cli` | The fallback stays three words (`-y`, `@hwip/cli`) after the change to an array. |
+| `no hwip, so npx -y @hwip/cli@<pin>` | The fallback stays three words (`-y`, `@hwip/cli@<exact version>`) after the change to an array. |
 | `the CLI cannot be started` | The approval hook's deny reason follows what the shell saw: exit 126/127 "Could not start the hwip CLI", 124 "did not finish", another code names it; only a CLI that ran and said nothing gets the 75 s message. |
 | `hwip_remote_active reads a time that bash would take for octal` | A leading 0, 13+ digits and a future time. The first used to stop the shell with "value too great for base"; the last kept REMOTE live until the clock caught up. |
 | `the denied-question stamp and the phone-origin marker` / `the idle time ioreg reports` | The other places that subtract a number a file or a probe gave them go through `hwip_age_sec` too. |
@@ -167,7 +167,9 @@ Wall-clock cases, so the suite sleeps for real (~25 s): a stub `tmux` that answe
 | Test | Catches |
 |------|---------|
 | `hwip on PATH → hwip mcp` | A global install keeps the in-process `hwip mcp` server. |
-| `no hwip on PATH → npx -y @hwip/cli mcp` | An `npx @hwip/cli install` user has no `hwip` binary; a bare `"command": "hwip"` never started the MCP server. Stubbed `hwip`/`npx` on a private PATH. |
+| `no hwip on PATH → npx -y @hwip/cli@<pin> mcp` | An `npx @hwip/cli install` user has no `hwip` binary; a bare `"command": "hwip"` never started the MCP server. Stubbed `hwip`/`npx` on a private PATH. |
+| `the npx pin is an exact version` · `the MCP pin equals the hooks pin` | The plugin directory blocks an unpinned launcher; `scripts/hwip-mcp.sh` and `hooks/gate.sh` must not drift apart. |
+| `no env block` | The plugin directory holds a plugin that forwards a credential from the user's environment; the CLI reads `HWIP_API_KEY` itself. |
 
 ## Fixtures
 

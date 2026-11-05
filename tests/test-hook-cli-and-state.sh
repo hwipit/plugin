@@ -102,7 +102,7 @@ assert "the push is sent"                     called
 assert "it carries the question"              grep -qF 'Proceed?' "$WORK/argv"
 
 echo
-echo "[P27: no hwip, so npx -y @hwip/cli — still three words, not one]"
+echo "[P27: no hwip, so npx -y @hwip/cli@<pin> — still three words, not one]"
 NPXDIR="$WORK/npxdir"; mkdir -p "$NPXDIR"
 cat > "$NPXDIR/npx" <<EOF
 #!/bin/bash
@@ -113,7 +113,7 @@ chmod +x "$NPXDIR/npx"
 rm -f "$WORK/argv"
 OUT=$(run hwip-approve.sh "$NPXDIR:$MIN" "$RM")
 assert "npx is called"                        called
-assert "the first two words are -y @hwip/cli" bash -c '[ "$(sed -n 1p "$1")" = -y ] && [ "$(sed -n 2p "$1")" = @hwip/cli ] && [ "$(sed -n 3p "$1")" = ask ]' _ "$WORK/argv"
+assert "the words are -y @hwip/cli@<pin> ask"  bash -c '[ "$(sed -n 1p "$1")" = -y ] && [ "$(sed -n 2p "$1")" = "@hwip/cli@$2" ] && [ "$(sed -n 3p "$1")" = ask ]' _ "$WORK/argv" "$(sed -n 's/^HWIP_CLI_PIN=//p' "$SCRIPT_DIR/../hooks/gate.sh")"
 assert "allows on approval"                   decision_is allow
 
 echo

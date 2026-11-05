@@ -199,9 +199,10 @@ hwipit/plugin (Claude Code plugin)
   ├─ hooks/hwip-approve.sh → PreToolUse(Bash): opt-in phone approval for hard-to-undo commands
   ├─ hooks/hwip-remote.sh  → UserPromptSubmit: phone-sent message → REMOTE mode
   ├─ hooks/hwip-herdr.sh   → agent state → herdr sidebar, for a `hwip cc` pane
-  ├─ .mcp.json             → registers the MCP server (`hwip mcp`, or `npx -y @hwip/cli mcp`
-  │                          when `hwip` is not on PATH); `HWIP_API_KEY` is optional
-  │                          (`${HWIP_API_KEY:-}` — unset, the key comes from ~/.hwip/config.json)
+  ├─ .mcp.json             → registers the MCP server via scripts/hwip-mcp.sh (`hwip mcp`,
+  │                          or `npx -y @hwip/cli@<pinned version> mcp` when `hwip` is not on
+  │                          PATH); the CLI reads `HWIP_API_KEY` from your environment, else
+  │                          `apiKey` in ~/.hwip/config.json
   └─ builds on:
       ├─ @hwip/cli         → hooks + notify/list/dismiss + tmux remote control
       └─ @hwip/mcp-server  → hwip_ask / notify / clipboard / file …

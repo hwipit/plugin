@@ -5,7 +5,9 @@
 # install` as a notifications-only setup, which leaves no `hwip` on PATH. A bare
 # `"command": "hwip"` then fails to spawn and the plugin's MCP server never
 # starts. The launch line must use `hwip` when it exists and fall back to
-# `npx -y @hwip/cli` when it does not.
+# `npx -y @hwip/cli@<pin>` when it does not. The pin must be an exact version
+# (the plugin directory blocks an unpinned launcher) and equal to the one the
+# hooks use (hooks/gate.sh HWIP_CLI_PIN).
 #
 # Both binaries are stubs on a private PATH — no real CLI is ever run.
 
@@ -38,7 +40,8 @@ assert_eq() {
 LAUNCH=()
 while IFS= read -r -d '' part; do LAUNCH+=("$part"); done < <(node -e '
 const s = require(process.argv[1]).mcpServers.hwip;
-process.stdout.write([s.command, ...s.args].map((a) => a + "\0").join(""));
+const root = require("path").dirname(process.argv[1]);
+process.stdout.write([s.command, ...s.args].map((a) => a.replaceAll("${CLAUDE_PLUGIN_ROOT}", root) + "\0").join(""));
 ' "$MCP_JSON")
 
 TMP=$(mktemp -d)
@@ -61,8 +64,21 @@ done
 OUT=$(PATH="$TMP/with:/usr/bin:/bin" "${LAUNCH[@]}")
 assert_eq "hwip on PATH → hwip mcp" "hwip mcp" "$OUT"
 
+PIN=$(sed -n 's/^HWIP_CLI_VERSION=//p' "$SCRIPT_DIR/../scripts/hwip-mcp.sh")
+GATE_PIN=$(sed -n 's/^HWIP_CLI_PIN=//p' "$SCRIPT_DIR/../hooks/gate.sh")
+TOTAL=$((TOTAL + 1))
+if printf '%s' "$PIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "  ✓ the npx pin is an exact version ($PIN)"; PASS=$((PASS + 1))
+else
+    echo "  ✗ the npx pin is an exact version (got '$PIN')"; FAIL=$((FAIL + 1)); FAILED_TESTS+=("exact pin")
+fi
+assert_eq "the MCP pin equals the hooks pin" "$GATE_PIN" "$PIN"
+
 OUT=$(PATH="$TMP/without:/usr/bin:/bin" "${LAUNCH[@]}")
-assert_eq "no hwip on PATH → npx -y @hwip/cli mcp" "npx -y @hwip/cli mcp" "$OUT"
+assert_eq "no hwip on PATH → npx -y @hwip/cli@<pin> mcp" "npx -y @hwip/cli@$PIN mcp" "$OUT"
+
+assert_eq "no env block — the key is not read from .mcp.json" "undefined" \
+    "$(node -e 'console.log(typeof require(process.argv[1]).mcpServers.hwip.env)' "$MCP_JSON")"
 
 echo
 echo "MCP launch: $PASS/$TOTAL passed"
