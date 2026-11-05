@@ -572,16 +572,19 @@ hwip_probe_cmd() {
 
 # hwip_cli_command [seconds] — HWIP_CLI, an ARRAY: the bounded command line that
 # starts the Hwip CLI. Call it as `"${HWIP_CLI[@]}" notify --title=…`. The CLI is
-# `hwip` when it is on PATH, else `npx -y @hwip/cli` (three words). It used to be
+# `hwip` when it is on PATH, else `npx -y @hwip/cli@<HWIP_CLI_PIN>` (three words —
+# the plugin directory blocks an unpinned launcher; keep the pin equal to
+# scripts/hwip-mcp.sh, which tests/test-mcp-launch.sh checks). It used to be
 # one string that the hooks left unquoted, so a `hwip` under `/Users/Jane Doe/…`
 # split into two words and the CLI was never started: no push, and an approval
 # that could only be denied.
+HWIP_CLI_PIN=0.1.19
 hwip_cli_command() {
     local bin
     if bin=$(command -v hwip 2>/dev/null) && [ -n "$bin" ]; then
         HWIP_CLI=("$bin")
     else
-        HWIP_CLI=(npx -y @hwip/cli)
+        HWIP_CLI=(npx -y "@hwip/cli@$HWIP_CLI_PIN")
     fi
     hwip_bound_prefix "${1:-8}"
     HWIP_CLI=(${HWIP_BOUND[@]+"${HWIP_BOUND[@]}"} "${HWIP_CLI[@]}")

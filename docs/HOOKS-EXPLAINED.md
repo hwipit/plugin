@@ -399,7 +399,7 @@ Check for errors:
 ```bash
 # If the hook silently failed, check:
 # 1. Is hwip CLI installed? 
-command -v hwip || echo "npx -y @hwip/cli" 
+command -v hwip || echo "npx -y @hwip/cli@<pin in hooks/gate.sh>"
 
 # 2. Is HWIP_API_KEY set?
 echo $HWIP_API_KEY
