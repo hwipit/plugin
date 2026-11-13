@@ -445,7 +445,21 @@ dial's `away` check asks the same question (see **Away detection**).
 Approve / Deny buttons. The hooks pass every flag value as one `--flag=value` word: the
 command (and the model's message in the Stop hook) is untrusted text, and as a separate
 word one that began with `--base-url=…` would be read as a flag of the CLI itself. A NUL byte in the command
-cannot live in a shell variable, so the approval body shows it as `␀` (U+2400) rather than dropping it. Approve → `allow`. Deny, timeout, unreachable server or
+cannot live in a shell variable, so the approval body shows it as `␀` (U+2400) rather than dropping it. Approve → `allow`.
+
+**Allow this session:** a third button, offered when the hook input carries a
+`session_id` safe in a file name and `shasum`/`sha256sum` exists. It answers
+`allow` and records `<epoch> <sha256 of the body>` in
+`approvesess-<project-hash>-<session_id>`. For the next 30 minutes
+(`HWIP_APPROVE_SESSION_TTL_SEC`) the same command text in the same session is
+allowed before any prompt — terminal or phone. Another command, another session,
+one byte of difference, or an expired line asks again. Never a category (one
+approved delete of `./dist` must not pass a delete of the home directory), and
+no "always" — a command that never asks again is the gate turned off, which
+`approve off` already is. Each write drops expired lines and the files of
+sessions whose newest line expired.
+
+Deny, timeout, unreachable server or
 free text → `deny`, with a reason that says which — `hwip ask`'s `reason`
 tells a cancel on the phone (don't retry) from a timeout or an error. Claude Code lets the tool
 call run when a hook times out, so the hook answers well inside its own 120 s

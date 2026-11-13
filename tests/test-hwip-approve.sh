@@ -317,6 +317,68 @@ no_presence
 rm -f "$WORK/tmux-clients" "$WORK/tmux-pane" "$WORK/ask-was-called"
 
 echo
+echo "[allow for this session — the same command, in the same session, for 30 minutes]"
+# The phone offers a third button. Only the exact command text is remembered,
+# only for the session that asked, and only for HWIP_APPROVE_SESSION_TTL_SEC.
+stub_session() {
+    cat > "$STUB_DIR/hwip" <<EOF
+#!/bin/bash
+touch "$WORK/ask-was-called"
+printf '%s\n' "\$@" > "$WORK/ask-argv"
+printf '%s' '$1'
+EOF
+    chmod +x "$STUB_DIR/hwip"
+}
+in_session() { jq -cn --arg c "$1" --arg s "$2" '{session_id:$s,tool_input:{command:$c}}'; }
+SESS_FILE="$WORK/state/hwip/approvesess-$HASH-sess_A"
+rm -f "$WORK/state/hwip"/approvesess-*
+
+stub_session '{"answered":true,"actionId":"approve_session"}'
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
+assert "asks"                                       asked
+assert "offers the session button"                  grep -qF -- 'approve_session:' "$WORK/ask-argv"
+assert "allows on that button"                      decision_is allow
+assert "remembers it for this session"              test -s "$SESS_FILE"
+
+stub_session '{"answered":true,"actionId":"deny"}'
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
+assert_not "the same command again does not ask"    asked
+assert "and is allowed"                             decision_is allow
+assert "says it was approved for this session"      reason_has "this session"
+
+OUT=$(run_hook "$(in_session 'rm -rf ./build' sess_A)")
+assert "another command asks again"                 asked
+assert "and the phone's deny holds"                 decision_is deny
+
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_B)")
+assert "another session asks again"                 asked
+assert "and the phone's deny holds there"           decision_is deny
+
+OUT=$(run_hook "$(in_session 'rm -rf ./dist ' sess_A)")
+assert "a command that differs by one byte asks"    asked
+
+sed -E 's/^[0-9]+ /1000 /' "$SESS_FILE" > "$SESS_FILE.tmp" && mv "$SESS_FILE.tmp" "$SESS_FILE"
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
+assert "an expired approval asks again"             asked
+assert "and the phone's deny holds after expiry"    decision_is deny
+
+stub_session '{"answered":true,"actionId":"approve"}'
+rm -f "$WORK/state/hwip"/approvesess-*
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
+assert "a plain approve allows"                     decision_is allow
+assert_not "and remembers nothing"                  test -e "$SESS_FILE"
+
+stub_session '{"answered":true,"actionId":"approve_session"}'
+OUT=$(run_hook "$RM")
+assert_not "no session id → no session button"      grep -qF -- 'approve_session:' "$WORK/ask-argv"
+assert_not "and its answer is not an allow"         decision_is allow
+
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' '../x')")
+assert_not "an unsafe session id → no session button" grep -qF -- 'approve_session:' "$WORK/ask-argv"
+assert_not "and nothing is written outside the state dir" test -e "$WORK/state/x"
+rm -f "$WORK/state/hwip"/approvesess-* "$WORK/ask-argv"
+
+echo
 echo "[muted — nobody can be asked, so nothing is blocked]"
 touch "$WORK/state/hwip/muted-$HASH"
 stub_ask '{"answered":true,"actionId":"approve"}'
