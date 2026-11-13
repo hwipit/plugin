@@ -80,7 +80,7 @@ Claude가 유저에게 질문 (AskUserQuestion tool 호출)
 되돌리기 어려운 Bash 명령(`rm -rf`, force push, prod 배포 등)을 붙잡는다. 사용자가
 터미널 앞이고(`hwip_presence` = present, tmux 안이면 이 세션의 pane 이 화면에 떠 있고 — `hwip_pane_visible`) REMOTE 가 아니며 권한 모드가 프롬프트를 띄우는
 모드면 `ask` 로 Claude Code 권한 프롬프트에 맡기고, 그 밖에는 폰에서 Approve 할 때까지
-기다린다. 거부 · 취소 · 타임아웃 · 서버 불통은 전부 deny. 보안 경계가 아니라 사고 방지용
+기다린다. 폰의 "Allow this session" 은 같은 명령 문자열(sha256)을 같은 세션에서 30분 동안 다시 묻지 않는다(`approvesess-<hash>-<session_id>`, 범주 허용 · "항상" 없음). 거부 · 취소 · 타임아웃 · 서버 불통은 전부 deny. 보안 경계가 아니라 사고 방지용
 과속방지턱이다.
 
 ### UserPromptSubmit Hook (hwip-remote.sh)

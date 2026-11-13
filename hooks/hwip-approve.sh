@@ -83,6 +83,88 @@ COMMAND=$(jq -r '.tool_input.command // empty' <<< "$INPUT" 2>/dev/null)
 
 hwip_approve_needed "$COMMAND" || exit 0
 
+# What the user is shown. A shell variable cannot hold a NUL: `$(...)` above drops
+# the byte without a word (the match above is on that text), and the approval
+# window would show a string the command never was. jq names the byte U+2400
+# here so the body says where it was.
+BODY=$(jq -r '.tool_input.command // empty | if type == "string" then split("\u0000") | join("\u2400") else . end' <<< "$INPUT" 2>/dev/null)
+
+# ALLOW FOR THIS SESSION. The phone offers a third button that remembers this
+# exact command text for this session, for HWIP_APPROVE_SESSION_TTL_SEC — so a
+# retried cleanup in the same build loop does not wait on the phone again.
+# Deliberately narrow: the sha256 of the whole command (the body above, so a
+# NUL still counts), keyed by project and session id. Never a category: one
+# approved recursive delete of ./dist must not pass the same delete aimed at
+# the home directory. There is no "always": a command that never asks again is
+# this gate switched off, and `/hwip-mode approve off` already says that out
+# loud. No session id that is safe in a file name, or no sha256 tool → no
+# button, the gate as before.
+HWIP_APPROVE_SESSION_TTL_SEC=1800
+SESSION_ID=$(jq -r '.session_id // empty' <<< "$INPUT" 2>/dev/null)
+case "$SESSION_ID" in '' | *[!A-Za-z0-9_-]*) SESSION_ID="" ;; esac
+CMD_HASH=""
+if [ -n "$SESSION_ID" ]; then
+    if command -v shasum >/dev/null 2>&1; then
+        CMD_HASH=$(printf '%s' "$BODY" | shasum -a 256 | cut -d' ' -f1)
+    elif command -v sha256sum >/dev/null 2>&1; then
+        CMD_HASH=$(printf '%s' "$BODY" | sha256sum | cut -d' ' -f1)
+    fi
+    case "$CMD_HASH" in *[!0-9a-f]*) CMD_HASH="" ;; esac
+    [ "${#CMD_HASH}" -eq 64 ] || CMD_HASH=""
+fi
+# One file per project and session: lines of "<epoch> <sha256>", oldest first.
+SESSION_FILE=""
+[ -n "$CMD_HASH" ] && SESSION_FILE="$HWIP_STATE_DIR/approvesess-$PROJECT_HASH-$SESSION_ID"
+
+# rc 0 when an approval stamp is no older than the TTL. A stamp from the future
+# (a clock set back, a damaged file) is not an approval.
+session_fresh() {
+    local age
+    age=$(hwip_age_sec "$1") || return 1
+    [ "$age" -ge 0 ] && [ "$age" -lt "$HWIP_APPROVE_SESSION_TTL_SEC" ]
+}
+
+session_approved() {
+    [ -n "$SESSION_FILE" ] && [ -f "$SESSION_FILE" ] || return 1
+    local stamp hash
+    while read -r stamp hash; do
+        [ "$hash" = "$CMD_HASH" ] && session_fresh "$stamp" && return 0
+    done < "$SESSION_FILE"
+    return 1
+}
+
+# Remember this command, and drop what has aged out: expired lines here, and
+# the files of sessions whose newest line has expired (there is no SessionEnd
+# hook to clean up after a session). Best-effort: a state dir that cannot be
+# written costs the next run one more phone round trip, never this approval.
+session_remember() {
+    [ -n "$SESSION_FILE" ] || return 0
+    mkdir -p "$HWIP_STATE_DIR" 2>/dev/null || return 0
+    local file stamp hash last tmp="$SESSION_FILE.tmp.$$"
+    for file in "$HWIP_STATE_DIR"/approvesess-*; do
+        [ -f "$file" ] && [ "$file" != "$SESSION_FILE" ] || continue
+        # Another hook's write in flight (parallel tool calls): not ours to drop.
+        case "$file" in *.tmp.*) continue ;; esac
+        last=$(tail -n 1 "$file" 2>/dev/null)
+        session_fresh "${last%% *}" || rm -f "$file" 2>/dev/null
+    done
+    {
+        if [ -f "$SESSION_FILE" ]; then
+            while read -r stamp hash; do
+                session_fresh "$stamp" && [ "$hash" != "$CMD_HASH" ] && printf '%s %s\n' "$stamp" "$hash"
+            done < "$SESSION_FILE"
+        fi
+        printf '%s %s\n' "$(hwip_ask_now)" "$CMD_HASH"
+    } > "$tmp" 2>/dev/null && mv -f "$tmp" "$SESSION_FILE" 2>/dev/null
+    rm -f "$tmp" 2>/dev/null
+    return 0
+}
+
+if session_approved; then
+    hwip_hook_decision allow "Approved for this session from the user's phone earlier (this exact command, within $((HWIP_APPROVE_SESSION_TTL_SEC / 60)) minutes)."
+    exit 0
+fi
+
 # The terminal prompt only where Claude Code is known to show one. In a
 # bypass-style mode an `ask` might be resolved without anyone looking — that
 # would be the gate failing open — so those keep the phone.
@@ -96,12 +178,6 @@ case "$PERMISSION_MODE" in
         fi ;;
 esac
 
-# What the user is shown. A shell variable cannot hold a NUL: `$(...)` above drops
-# the byte without a word (the match above is on that text), and the approval
-# window would show a string the command never was. jq names the byte U+2400
-# here so the body says where it was.
-BODY=$(jq -r '.tool_input.command // empty | if type == "string" then split("\u0000") | join("\u2400") else . end' <<< "$INPUT" 2>/dev/null)
-
 PROJECT=${PROJECT_DIR##*/}
 [ -n "$PROJECT" ] || PROJECT=unknown
 
@@ -109,6 +185,8 @@ PROJECT=${PROJECT_DIR##*/}
 # and is off by default, so `command -v hwip` at load time would be a fork spent
 # on every command for every user who never opted in.
 hwip_cli_command "$HWIP_APPROVE_CLI_CAP_SEC"
+ACTIONS="approve:Approve,deny:Deny"
+[ -n "$SESSION_FILE" ] && ACTIONS="approve:Approve,approve_session:Allow this session,deny:Deny"
 # The answer, or the absence of one. `hwip ask` returns a single JSON shape for
 # every outcome it gets to report, including its own failures; CLI_RC is for the
 # ones it never got to (the CLI could not be started, or the outer cap killed it).
@@ -118,7 +196,7 @@ hwip_cli_command "$HWIP_APPROVE_CLI_CAP_SEC"
 ANSWER=$("${HWIP_CLI[@]}" ask \
     --title="Approve in $PROJECT?" \
     --body="$BODY" \
-    --actions="approve:Approve,deny:Deny" \
+    --actions="$ACTIONS" \
     --timeout="$HWIP_APPROVE_DEADLINE_SEC" 2>/dev/null)
 CLI_RC=$?
 
@@ -130,6 +208,12 @@ UNANSWERED=$(jq -r '.reason // empty' <<< "$ANSWER" 2>/dev/null)
 
 if [ "$ACTION" = approve ]; then
     hwip_hook_decision allow "Approved from the user's phone."
+    exit 0
+fi
+# Only a button this run offered counts: without a session file there was none.
+if [ "$ACTION" = approve_session ] && [ -n "$SESSION_FILE" ]; then
+    session_remember
+    hwip_hook_decision allow "Approved from the user's phone for this session (this exact command, $((HWIP_APPROVE_SESSION_TTL_SEC / 60)) minutes)."
     exit 0
 fi
 
