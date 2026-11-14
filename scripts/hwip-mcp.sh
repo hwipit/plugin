@@ -9,6 +9,6 @@
 #
 # The API key is not passed here. The CLI reads HWIP_API_KEY from the
 # environment Claude Code passes down, else apiKey in ~/.hwip/config.json.
-HWIP_CLI_VERSION=0.1.19
+HWIP_CLI_VERSION=0.1.25
 command -v hwip >/dev/null 2>&1 && exec hwip mcp
 exec npx -y "@hwip/cli@$HWIP_CLI_VERSION" mcp

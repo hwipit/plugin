@@ -578,7 +578,7 @@ hwip_probe_cmd() {
 # one string that the hooks left unquoted, so a `hwip` under `/Users/Jane Doe/…`
 # split into two words and the CLI was never started: no push, and an approval
 # that could only be denied.
-HWIP_CLI_PIN=0.1.19
+HWIP_CLI_PIN=0.1.25
 hwip_cli_command() {
     local bin
     if bin=$(command -v hwip 2>/dev/null) && [ -n "$bin" ]; then
