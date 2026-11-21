@@ -83,6 +83,14 @@ Claude가 유저에게 질문 (AskUserQuestion tool 호출)
 기다린다. 폰의 "Allow this session" 은 같은 명령 문자열(sha256)을 같은 세션에서 30분 동안 다시 묻지 않는다(`approvesess-<hash>-<session_id>`, 범주 허용 · "항상" 없음). 거부 · 취소 · 타임아웃 · 서버 불통은 전부 deny. 보안 경계가 아니라 사고 방지용
 과속방지턱이다.
 
+### PermissionDenied Hook (hwip-denied.sh)
+
+auto mode 분류기는 사용자가 입력한 메시지만 동의로 치고 툴 결과를 보지 않으므로, 폰 `hwip_ask` 로 준 승인은
+분류기에 닿지 않는다. 분류기가 Bash 명령을 막으면, REMOTE 거나 터미널 앞에 사람이 없을 때 폰에 "Run it?" 을
+묻는다. Run it 이면 그 명령 문자열의 sha256 을 `approveonce-<hash>-<session_id>` 에 1회·10분짜리로 적고
+`retry: true` 를 답한다. 모델의 재시도는 hwip-approve.sh 가 그 줄을 소비해 `allow` 로 통과시킨다
+(PreToolUse allow 는 분류기보다 먼저 결정한다 — 2026-11-21 실측). opt-in(`approve on`)과 무관하다.
+
 ### UserPromptSubmit Hook (hwip-remote.sh)
 
 리스너가 폰 메시지를 tmux pane 에 주입하며 남긴 마커와 프롬프트가 맞으면 sticky

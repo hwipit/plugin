@@ -14,7 +14,8 @@ The plugin installs these hooks (`.claude-plugin/plugin.json`), which fire autom
 | **PostToolUse** (Ask result) | After `hwip_ask` returns | hwip-ask-result.js | Hand rules 7·8 (handling the answer) over with the first `hwip_ask` result of a session context |
 | **Stop** | Response ends | hwip-stop.sh | Send completion notification if work was done |
 | **PreToolUse** (Ask) | Before AskUserQuestion | hwip-ask.sh | Send notification when Claude asks user a question |
-| **PreToolUse** (Approve) | Before Bash | hwip-approve.sh | Opt-in: hold a hard-to-undo command until the user approves it from the phone |
+| **PreToolUse** (Approve) | Before Bash | hwip-approve.sh | Opt-in: hold a hard-to-undo command until the user approves it from the phone; also passes a command the phone approved after an auto mode denial |
+| **PermissionDenied** | Auto mode denied a Bash call | hwip-denied.sh | Away or in REMOTE: ask the phone whether to run the blocked command anyway |
 | **UserPromptSubmit** | Prompt submitted | hwip-remote.sh | Flag phone-sent (and agent-sent) messages, and hold sticky REMOTE mode across later turns (ADR-0002) |
 | **herdr** | SessionStart · UserPromptSubmit · Stop · Notification · Pre/PostToolUse · SessionEnd | hwip-herdr.sh | Report `working`/`idle`/`blocked` to [herdr](https://herdr.dev) for a `hwip cc` session — no-op outside one |
 
@@ -464,6 +465,35 @@ free text → `deny`, with a reason that says which — `hwip ask`'s `reason`
 tells a cancel on the phone (don't retry) from a timeout or an error. Claude Code lets the tool
 call run when a hook times out, so the hook answers well inside its own 120 s
 limit — late is a refusal, never a pass.
+
+---
+
+## Denied Hook (hwip-denied.sh)
+
+**Why:** auto mode's classifier takes only what the user typed as consent. It
+strips tool results from what it reads, so a "merge it" tapped on a `hwip_ask`
+never reaches it, and the merge the user asked for is blocked as the agent's
+own idea. A hook's `classifierContext` does not help: a note from a settings or
+plugin hook "never establishes user intent" (code.claude.com/docs/en/hooks).
+
+**What it does:** on a `PermissionDenied` event for Bash, while the session is
+in REMOTE or nobody is at the terminal (the same presence test the Approve hook
+uses), it sends `hwip ask --title="Auto mode blocked a command in <project>. Run it?"`
+with the classifier's reason and the command, buttons Run it / Keep blocked.
+Muted, no safe `session_id`, or no sha256 tool → nothing is asked.
+
+**Run it:** the hook records `<epoch> <sha256 of the command>` in
+`approveonce-<project-hash>-<session_id>` and answers `retry: true` — a
+PermissionDenied hook cannot reverse the denial, only let the model try again.
+The retry reaches the Approve hook first, which takes that line and answers
+`allow`; a PreToolUse allow decides the call before the classifier sees it
+(measured 2026-11-21, Claude Code 2.1.330). One use, within 10 minutes
+(`HWIP_APPROVE_ONCE_TTL_SEC`), the exact command text in the same session, and
+regardless of `/hwip-mode approve` — the opt-in governs the pattern gate, not
+this. A retry that changes one byte is judged afresh.
+
+**Keep blocked, timeout, unreachable server, unwritable state dir:** no record,
+no retry — the denial stands.
 
 ---
 

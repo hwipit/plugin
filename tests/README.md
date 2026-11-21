@@ -89,6 +89,16 @@ Wall-clock cases, so the suite sleeps for real (~25 s): a stub `tmux` that answe
 | `no CLAUDE_PROJECT_DIR — title falls back to the working directory` | Same fallback as the Stop hook. |
 | `python3 that fails to run — body still carries the question, capped` | The trim fell through to nothing and the push body went out blank; it now falls back to a bash substring. |
 
+### hwip-denied.sh (`test-hwip-denied.sh`)
+
+| Test | Catches |
+|------|---------|
+| `away + Run it` / `the retry of the same command passes once` | The round trip: Run it records the command and answers `retry`; the Approve hook allows that exact command once, with `approve` off. |
+| `bound to the command and the session` / `a stale approval` | One byte of difference, another session, a line older than 10 minutes or from the future: no allow. |
+| `Keep blocked, silence, or an error` | Anything but Run it leaves no record and no retry. |
+| `at the terminal` / `in REMOTE` | Nobody is asked at the terminal; REMOTE asks the phone even then. |
+| `muted or no session id` | The hook stays inert. |
+
 ### hwip-ask-result.js (`test-hwip-ask-result.sh`)
 
 | Test | Catches |
