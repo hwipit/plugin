@@ -71,6 +71,20 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
 PROJECT_HASH=$(printf '%s' "$PROJECT_DIR" | cksum)
 PROJECT_HASH=${PROJECT_HASH%% *}
 
+# APPROVED AFTER A DENIAL — the retry of a command the phone approved once
+# auto mode blocked it (why and how: hwip-denied.sh). Ahead of the opt-in: that
+# approval does not depend on `/hwip-mode approve on`. The glob is a builtin,
+# so a project with no such file pays no fork for it.
+ONCE_FILES=("$HWIP_STATE_DIR/approveonce-$PROJECT_HASH-"*)
+if [ -f "${ONCE_FILES[0]}" ]; then
+    SESSION_ID=$(hwip_session_id "$INPUT")
+    if [ -n "$SESSION_ID" ] && ONCE_HASH=$(hwip_command_hash "$(hwip_command_body "$INPUT")") \
+        && hwip_approve_once_take "$HWIP_STATE_DIR/approveonce-$PROJECT_HASH-$SESSION_ID" "$ONCE_HASH"; then
+        hwip_hook_decision allow "Approved from the user's phone after auto mode blocked it (this exact command, once)."
+        exit 0
+    fi
+fi
+
 # Not enabled here → behave exactly as if this hook did not exist.
 hwip_state_present approve "$PROJECT_HASH" >/dev/null || exit 0
 
@@ -83,11 +97,9 @@ COMMAND=$(jq -r '.tool_input.command // empty' <<< "$INPUT" 2>/dev/null)
 
 hwip_approve_needed "$COMMAND" || exit 0
 
-# What the user is shown. A shell variable cannot hold a NUL: `$(...)` above drops
-# the byte without a word (the match above is on that text), and the approval
-# window would show a string the command never was. jq names the byte U+2400
-# here so the body says where it was.
-BODY=$(jq -r '.tool_input.command // empty | if type == "string" then split("\u0000") | join("\u2400") else . end' <<< "$INPUT" 2>/dev/null)
+# What the user is shown: the command with a NUL named, not dropped
+# (gate.sh hwip_command_body; the match above is on the text without it).
+BODY=$(hwip_command_body "$INPUT")
 
 # ALLOW FOR THIS SESSION. The phone offers a third button that remembers this
 # exact command text for this session, for HWIP_APPROVE_SESSION_TTL_SEC — so a
@@ -100,29 +112,16 @@ BODY=$(jq -r '.tool_input.command // empty | if type == "string" then split("\u0
 # loud. No session id that is safe in a file name, or no sha256 tool → no
 # button, the gate as before.
 HWIP_APPROVE_SESSION_TTL_SEC=1800
-SESSION_ID=$(jq -r '.session_id // empty' <<< "$INPUT" 2>/dev/null)
-case "$SESSION_ID" in '' | *[!A-Za-z0-9_-]*) SESSION_ID="" ;; esac
+SESSION_ID=$(hwip_session_id "$INPUT")
 CMD_HASH=""
-if [ -n "$SESSION_ID" ]; then
-    if command -v shasum >/dev/null 2>&1; then
-        CMD_HASH=$(printf '%s' "$BODY" | shasum -a 256 | cut -d' ' -f1)
-    elif command -v sha256sum >/dev/null 2>&1; then
-        CMD_HASH=$(printf '%s' "$BODY" | sha256sum | cut -d' ' -f1)
-    fi
-    case "$CMD_HASH" in *[!0-9a-f]*) CMD_HASH="" ;; esac
-    [ "${#CMD_HASH}" -eq 64 ] || CMD_HASH=""
-fi
+[ -n "$SESSION_ID" ] && CMD_HASH=$(hwip_command_hash "$BODY")
 # One file per project and session: lines of "<epoch> <sha256>", oldest first.
 SESSION_FILE=""
 [ -n "$CMD_HASH" ] && SESSION_FILE="$HWIP_STATE_DIR/approvesess-$PROJECT_HASH-$SESSION_ID"
 
 # rc 0 when an approval stamp is no older than the TTL. A stamp from the future
 # (a clock set back, a damaged file) is not an approval.
-session_fresh() {
-    local age
-    age=$(hwip_age_sec "$1") || return 1
-    [ "$age" -ge 0 ] && [ "$age" -lt "$HWIP_APPROVE_SESSION_TTL_SEC" ]
-}
+session_fresh() { hwip_stamp_fresh "$1" "$HWIP_APPROVE_SESSION_TTL_SEC"; }
 
 session_approved() {
     [ -n "$SESSION_FILE" ] && [ -f "$SESSION_FILE" ] || return 1
@@ -171,8 +170,7 @@ fi
 PERMISSION_MODE=$(jq -r '.permission_mode // empty' <<< "$INPUT" 2>/dev/null)
 case "$PERMISSION_MODE" in
     default|acceptEdits|plan)
-        if ! hwip_remote_active "$PROJECT_HASH" && [ "$(hwip_presence)" = present ] \
-            && [ "$(hwip_pane_visible)" != hidden ]; then
+        if hwip_user_at_terminal "$PROJECT_HASH"; then
             hwip_hook_decision ask "Hard-to-undo command. You are at the terminal, so Claude Code asks here instead of your phone."
             exit 0
         fi ;;

@@ -740,3 +740,105 @@ hwip_pane_visible() {
         echo visible
     fi
 }
+
+# ── Approval of one exact command (hwip-approve.sh · hwip-denied.sh) ─────────
+#
+# An approval is keyed by the sha256 of the whole command text, never by a
+# category: one approved delete of ./dist must not pass a delete of the home
+# directory.
+
+# hwip_command_body <hook input> — tool_input.command as the user is shown it.
+# A shell variable cannot hold a NUL: `$(...)` drops the byte without a word,
+# and the approval window would show a string the command never was. jq names
+# the byte U+2400 so the body says where it was.
+hwip_command_body() {
+    jq -r '.tool_input.command // empty | if type == "string" then split("\u0000") | join("␀") else . end' <<< "$1" 2>/dev/null
+}
+
+# hwip_session_id <hook input> — session_id when it is safe in a file name;
+# empty otherwise.
+hwip_session_id() {
+    local sid
+    sid=$(jq -r '.session_id // empty' <<< "$1" 2>/dev/null)
+    case "$sid" in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
+    printf '%s' "$sid"
+}
+
+# hwip_command_hash <body> — echoes the sha256 of <body>; rc 1 with no sha256
+# tool or a malformed digest.
+hwip_command_hash() {
+    local h=""
+    if command -v shasum >/dev/null 2>&1; then
+        h=$(printf '%s' "$1" | shasum -a 256 | cut -d' ' -f1)
+    elif command -v sha256sum >/dev/null 2>&1; then
+        h=$(printf '%s' "$1" | sha256sum | cut -d' ' -f1)
+    fi
+    case "$h" in *[!0-9a-f]*) return 1 ;; esac
+    [ "${#h}" -eq 64 ] || return 1
+    echo "$h"
+}
+
+# One-use approvals: the phone approved a command after auto mode denied it
+# (hwip-denied.sh), and the model's retry of that exact command passes once
+# (hwip-approve.sh). File `approveonce-<project-hash>-<session_id>`, lines
+# "<epoch> <sha256>". Short-lived: the retry comes right after the answer.
+HWIP_APPROVE_ONCE_TTL_SEC=600
+
+# hwip_stamp_fresh <epoch> <ttl> — rc 0 when <epoch> is no older than <ttl>
+# seconds. A stamp from the future (a clock set back, a damaged file) is not.
+hwip_stamp_fresh() {
+    local age
+    age=$(hwip_age_sec "$1") || return 1
+    [ "$age" -ge 0 ] && [ "$age" -lt "$2" ]
+}
+
+# hwip_user_at_terminal <project-hash> — rc 0 when the user is provably at this
+# session's terminal and not driving it from the phone: not REMOTE, presence
+# reads `present`, and inside tmux this pane is not hidden.
+hwip_user_at_terminal() {
+    ! hwip_remote_active "$1" && [ "$(hwip_presence)" = present ] \
+        && [ "$(hwip_pane_visible)" != hidden ]
+}
+
+# hwip_approve_once_rewrite <file> <hash> <add> — keep the fresh lines of
+# <file> other than <hash>, plus a new line for <hash> when <add> is 1. rc 0
+# when <hash> had a fresh line before the rewrite.
+hwip_approve_once_rewrite() {
+    local file="$1" want="$2" add="$3" tmp="$1.tmp.$$" stamp hash found=1
+    {
+        if [ -f "$file" ]; then
+            while read -r stamp hash; do
+                hwip_stamp_fresh "$stamp" "$HWIP_APPROVE_ONCE_TTL_SEC" || continue
+                if [ "$hash" = "$want" ]; then found=0; continue; fi
+                printf '%s %s\n' "$stamp" "$hash"
+            done < "$file"
+        fi
+        if [ "$add" = 1 ]; then printf '%s %s\n' "$(hwip_ask_now)" "$want"; fi
+    } > "$tmp" 2>/dev/null || { rm -f "$tmp" 2>/dev/null; return 2; }
+    if [ -s "$tmp" ]; then mv -f "$tmp" "$file" 2>/dev/null; else rm -f "$tmp" "$file" 2>/dev/null; fi
+    return "$found"
+}
+
+# hwip_approve_once_put <file> <hash> — record one use, and drop the other
+# files whose newest line expired (no SessionEnd hook cleans up after a
+# session; a leftover file costs every Bash call of the project a lookup). rc 1
+# when it could not be written: then there is no approval to hand the retry.
+hwip_approve_once_put() {
+    local other last
+    mkdir -p "$(dirname "$1")" 2>/dev/null || return 1
+    for other in "$(dirname "$1")"/approveonce-*; do
+        [ -f "$other" ] && [ "$other" != "$1" ] || continue
+        case "$other" in *.tmp.*) continue ;; esac
+        last=$(tail -n 1 "$other" 2>/dev/null)
+        hwip_stamp_fresh "${last%% *}" "$HWIP_APPROVE_ONCE_TTL_SEC" || rm -f "$other" 2>/dev/null
+    done
+    hwip_approve_once_rewrite "$1" "$2" 1
+    [ $? -le 1 ] && [ -f "$1" ]
+}
+
+# hwip_approve_once_take <file> <hash> — rc 0 when <hash> had a fresh line,
+# which is removed: the approval passes one run, not every later one.
+hwip_approve_once_take() {
+    [ -f "$1" ] || return 1
+    hwip_approve_once_rewrite "$1" "$2" 0
+}

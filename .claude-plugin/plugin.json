@@ -145,6 +145,18 @@
           }
         ]
       }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/hwip-denied.sh\"",
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }

@@ -197,6 +197,7 @@ hwipit/plugin (Claude Code plugin)
   ├─ hooks/hwip-stop.sh    → Stop: auto completion push
   ├─ hooks/hwip-ask.sh     → PreToolUse(AskUserQuestion): question push
   ├─ hooks/hwip-approve.sh → PreToolUse(Bash): opt-in phone approval for hard-to-undo commands
+  ├─ hooks/hwip-denied.sh  → PermissionDenied(Bash): away/REMOTE, ask the phone to run a command auto mode blocked
   ├─ hooks/hwip-remote.sh  → UserPromptSubmit: phone-sent message → REMOTE mode
   ├─ hooks/hwip-herdr.sh   → agent state → herdr sidebar, for a `hwip cc` pane
   ├─ .mcp.json             → registers the MCP server via scripts/hwip-mcp.sh (`hwip mcp`,
