@@ -519,6 +519,7 @@ assert "carries Rule 9 in full"             grep -q "State Detection" <<<"$CTX"
 write_marker "$P" "no id two"
 CTX=$(run_hook "no id two" "$P" "hook_123" | ctx_of)
 assert "…every time"                        grep -q "State Detection" <<<"$CTX"
+# shellcheck disable=SC2010  # counting names by prefix; the dir holds only plain names
 assert "nothing marked"                     [ "$(ls "$WORK/state/hwip" | grep -c '^remote-injected-')" -eq 2 ]
 
 echo

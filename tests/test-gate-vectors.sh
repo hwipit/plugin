@@ -18,6 +18,7 @@ VECTORS="$SCRIPT_DIR/fixtures/gate-vectors.json"
 [ -f "$VECTORS" ]  || { echo "vectors not found: $VECTORS" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq required" >&2; exit 1; }
 
+# shellcheck source=/dev/null
 . "$GATE_LIB"
 
 PASS=0; FAIL=0; TOTAL=0
@@ -85,6 +86,7 @@ record "an empty away argument is present" \
 echo
 echo "[hwip_read_pushmode — dial resolution]"
 STATE_TMP=$(mktemp -d)
+# shellcheck disable=SC2034  # XDG_STATE_HOME is read by the sourced gate lib
 XDG_STATE_HOME="$STATE_TMP" HWIP_STATE_DIR="$STATE_TMP/hwip"
 mkdir -p "$HWIP_STATE_DIR"
 DIAL="$HWIP_STATE_DIR/pushmode-testhash"
@@ -122,7 +124,8 @@ wrap_run() {
         PATH="$WRAP_BIN"
         wrapped=$(hwip_wrap_timeout "$1" "$seconds"); shift
         start=$SECONDS
-        # shellcheck disable=SC2086 -- a command line, the way the hooks use it
+        # A command line, the way the hooks use it: word-splitting is intended.
+        # shellcheck disable=SC2086
         out=$($wrapped "$@")
         rc=$?
         echo "$rc $((SECONDS - start)) $out"

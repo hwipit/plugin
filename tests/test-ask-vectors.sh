@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Vector tests for hooks/gate.sh — the pure AskUserQuestion routing decision.
+# shellcheck disable=SC2010  # marker checks count names by prefix; state dir holds plain names only
 #
 # Unlike fixtures/gate-vectors.json, this file is NOT a cross-repo contract:
 # the push gate has a TS twin in @hwip/cli, this decision does not. It lives
@@ -18,6 +19,7 @@ VECTORS="$SCRIPT_DIR/fixtures/ask-vectors.json"
 [ -f "$VECTORS" ]  || { echo "vectors not found: $VECTORS" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq required" >&2; exit 1; }
 
+# shellcheck source=/dev/null
 . "$GATE_LIB"
 
 PASS=0; FAIL=0; TOTAL=0
