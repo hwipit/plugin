@@ -96,6 +96,15 @@ if [ "$(hwip_ask_decide "$HOOKID_PRESENT" 0 "$HAS_PREVIEW" "$QUESTION_CHARS" "$O
     # duplicate the question. If the model ignores the reason and simply stops,
     # the end-of-turn Stop hook is the remaining signal, which is quieter than
     # the one-way notify this path used to send.
+    # A multi-question call lists every question (numbered, each with its own
+    # options) — carrying only the first would silently drop the rest.
+    QUESTION_COUNT=$(printf '%s' "$INPUT" | jq -r '(.tool_input.questions // []) | length' 2>/dev/null)
+    case "$QUESTION_COUNT" in ''|*[!0-9]*) QUESTION_COUNT=0 ;; esac
+    if [ "$QUESTION_COUNT" -gt 1 ]; then
+        ALL_QUESTIONS=$(printf '%s' "$INPUT" | jq -r '[.tool_input.questions | to_entries[] | "\(.key + 1). \"\(.value.question // "")\"" + (([.value.options[]?.label // empty] | join(" · ")) | if . == "" then "" else " Options: \(.)." end)] | join(" ")' 2>/dev/null)
+        hwip_hook_decision deny "Do not use AskUserQuestion here. Ask these exact $QUESTION_COUNT questions again with the hwip_ask tool (one call per question, in order) so the user can answer them from their phone: $ALL_QUESTIONS Map each option to a hwip_ask action and use the responses in place of the picker."
+        exit 0
+    fi
     OPTION_LINE=""
     [ -n "$OPTIONS" ] && OPTION_LINE=" Options: $OPTIONS."
     hwip_hook_decision deny "Do not use AskUserQuestion here. Ask this exact question again with the hwip_ask tool so the user can answer it from their phone: \"$QUESTION\".$OPTION_LINE Map each option to a hwip_ask action and use the response in place of the picker."

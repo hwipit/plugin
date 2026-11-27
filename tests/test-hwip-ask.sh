@@ -342,6 +342,16 @@ OUT=$(run_hook_routed "$(printf '{"tool_input":{"questions":[{"question":"%s","o
 assert "keeps the whole question"      deny_json_has "$(printf '.hookSpecificOutput.permissionDecisionReason | test("do it\\\\?")')"
 
 echo
+echo "[routing — a multi-question call carries every question in the reason]"
+OUT=$(run_hook_routed '{"tool_input":{"questions":[{"question":"Pick a database?","options":[{"label":"Postgres"},{"label":"SQLite"}]},{"question":"Enable caching?","options":[{"label":"Redis"},{"label":"None"}]},{"question":"Which region?","options":[{"label":"us-east"}]}]}}')
+assert "still denies"                  deny_json_has '.hookSpecificOutput.permissionDecision == "deny"'
+assert "carries the first question"    deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Pick a database\\?")'
+assert "carries the second question"   deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Enable caching\\?")'
+assert "carries the third question"    deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Which region\\?")'
+assert "carries the second options"    deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Redis")'
+assert "carries the third options"     deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("us-east")'
+
+echo
 echo "[routing — carve-out (a): an option preview needs the terminal]"
 OUT=$(run_hook_routed '{"tool_input":{"questions":[{"question":"Which layout?","options":[{"label":"A","preview":"+---+\n|   |\n+---+"},{"label":"B"}]}]}}')
 assert_not "does not deny"             deny_json_has '.hookSpecificOutput.permissionDecision == "deny"'
