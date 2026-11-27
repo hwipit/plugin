@@ -30,7 +30,7 @@ QUESTION=$(printf '%s' "$INPUT" | jq -r '.tool_input.question // .tool_input.que
 # choices — this push is one-way, but the answer itself need not be: when the
 # session runs in tmux under `hwip listener`, the phone's terminal mirror can
 # drive the picker directly (see mirror_available below).
-OPTIONS=$(printf '%s' "$INPUT" | jq -r '[.tool_input.questions[0].options[]?.label // empty] | join(" · ")' 2>/dev/null)
+OPTIONS=$(printf '%s' "$INPUT" | jq -r '[.tool_input.questions[0].options[]? | if type == "object" then (.label // empty) else (strings // empty) end] | join(" · ")' 2>/dev/null)
 
 # ── Route the question, or let the picker open ───────────────────────────────
 #
@@ -50,11 +50,12 @@ OPTIONS=$(printf '%s' "$INPUT" | jq -r '[.tool_input.questions[0].options[]?.lab
 # short question and route it — turning unparseable input into a deny.
 ask_measure() { printf '%s' "$INPUT" | jq -r "$1" 2>/dev/null || echo unmeasurable; }
 
-HAS_PREVIEW=$(ask_measure '[.tool_input.questions[]?.options[]?.preview // empty] | if length > 0 then 1 else 0 end')
-QUESTION_CHARS=$(ask_measure '(.tool_input.question // .tool_input.questions[0].question // "") | length')
+HAS_PREVIEW=$(ask_measure '[.tool_input.questions[]?.options[]? | objects | .preview // empty] | if length > 0 then 1 else 0 end')
+# Longest question stem across the call: a long later question needs the picker too.
+QUESTION_CHARS=$(ask_measure '[(.tool_input.question // empty), (.tool_input.questions[]?.question // empty)] | map(length) | max // 0')
 # Longest label+description across every option: `description` is where long
 # content actually lands, so measuring labels alone would miss the carve-out.
-OPTION_CHARS=$(ask_measure '[.tool_input.questions[]?.options[]? | ((.label // "") + (.description // "")) | length] | max // 0')
+OPTION_CHARS=$(ask_measure '[.tool_input.questions[]?.options[]? | if type == "object" then ((.label // "") + (.description // "")) else (strings // "") end | length] | max // 0')
 
 # Keyed on the whole tool_input, not the question stem: "Proceed?" recurs
 # constantly in one session and would collide with unrelated questions.
@@ -101,7 +102,7 @@ if [ "$(hwip_ask_decide "$HOOKID_PRESENT" 0 "$HAS_PREVIEW" "$QUESTION_CHARS" "$O
     QUESTION_COUNT=$(printf '%s' "$INPUT" | jq -r '(.tool_input.questions // []) | length' 2>/dev/null)
     case "$QUESTION_COUNT" in ''|*[!0-9]*) QUESTION_COUNT=0 ;; esac
     if [ "$QUESTION_COUNT" -gt 1 ]; then
-        ALL_QUESTIONS=$(printf '%s' "$INPUT" | jq -r '[.tool_input.questions | to_entries[] | "\(.key + 1). \"\(.value.question // "")\"" + (([.value.options[]?.label // empty] | join(" · ")) | if . == "" then "" else " Options: \(.)." end)] | join(" ")' 2>/dev/null)
+        ALL_QUESTIONS=$(printf '%s' "$INPUT" | jq -r '[.tool_input.questions | to_entries[] | "\(.key + 1). \"\(.value.question // "")\"" + (([.value.options[]? | if type == "object" then (.label // empty) else (strings // empty) end] | join(" · ")) | if . == "" then "" else " Options: \(.)." end)] | join(" ")' 2>/dev/null)
         hwip_hook_decision deny "Do not use AskUserQuestion here. Ask these exact $QUESTION_COUNT questions again with the hwip_ask tool (one call per question, in order) so the user can answer them from their phone: $ALL_QUESTIONS Map each option to a hwip_ask action and use the responses in place of the picker."
         exit 0
     fi

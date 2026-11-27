@@ -352,6 +352,20 @@ assert "carries the second options"    deny_json_has '.hookSpecificOutput.permis
 assert "carries the third options"     deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("us-east")'
 
 echo
+echo "[routing — multi-question: a long LATER question keeps the picker]"
+LONG_Q2=$(python3 -c "print('Explain ' + 'in detail ' * 50 + '?')")   # > 400 chars
+OUT=$(run_hook_routed "$(printf '{"tool_input":{"questions":[{"question":"Short?","options":[{"label":"Yes"}]},{"question":"%s","options":[{"label":"Yes"}]}]}}' "$LONG_Q2")")
+assert_not "long second question is not denied" deny_json_has '.hookSpecificOutput.permissionDecision == "deny"'
+
+echo
+echo "[routing — multi-question: plain-string options survive]"
+OUT=$(run_hook_routed '{"tool_input":{"questions":[{"question":"Pick one?","options":["Alpha","Beta"]},{"question":"Pick two?","options":["Gamma"]}]}}')
+assert "still denies"                  deny_json_has '.hookSpecificOutput.permissionDecision == "deny"'
+assert "carries the first question"    deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Pick one\\?")'
+assert "carries the second question"   deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Pick two\\?")'
+assert "carries string options"        deny_json_has '.hookSpecificOutput.permissionDecisionReason | test("Alpha")'
+
+echo
 echo "[routing — carve-out (a): an option preview needs the terminal]"
 OUT=$(run_hook_routed '{"tool_input":{"questions":[{"question":"Which layout?","options":[{"label":"A","preview":"+---+\n|   |\n+---+"},{"label":"B"}]}]}}')
 assert_not "does not deny"             deny_json_has '.hookSpecificOutput.permissionDecision == "deny"'
