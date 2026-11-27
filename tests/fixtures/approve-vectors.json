@@ -91,6 +91,19 @@
   { "name": "rm -rf in a later segment",
     "command": "cd x && rm -rf build", "expect": "yes" },
 
+  { "name": "reset --hard inside bash -c quotes",
+    "command": "bash -c \"git reset --hard\"", "expect": "yes" },
+  { "name": "reset --hard inside a command substitution",
+    "command": "x=$(git reset --hard)", "expect": "yes" },
+  { "name": "terraform apply inside quotes",
+    "command": "bash -c \"terraform apply\"", "expect": "yes" },
+  { "name": "push --delete inside single quotes over ssh",
+    "command": "ssh h 'git push origin feat --delete'", "expect": "yes" },
+  { "name": "git clean --force",
+    "command": "git clean --force", "expect": "yes" },
+  { "name": "git clean --force --dry-run is a dry run",
+    "command": "git clean --force -n", "expect": "no" },
+
   { "name": "an empty command asks for nothing",
     "command": "", "expect": "no" }
 ]

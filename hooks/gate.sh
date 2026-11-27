@@ -400,6 +400,7 @@ hwip_approve_segment() {
     #    the subcommand, so they are skipped before the subcommand is read.
     if [[ $seg =~ (^|[^[:alnum:]_-])git[[:space:]] ]]; then
         rest=${seg#*"${BASH_REMATCH[0]}"}
+        rest=$(tr "\"'()\`{}" ' ' <<< "$rest")  # tokens must not carry a closing quote or paren
         read -ra toks <<< "$rest"
         i=0
         while [ "$i" -lt "${#toks[@]}" ]; do
@@ -432,6 +433,7 @@ hwip_approve_segment() {
                 for tok in "${args[@]}"; do
                     case "$tok" in
                         --dry-run) return 1 ;;
+                        --force) hit=0 ;;
                         --*) ;;
                         -*n*) return 1 ;;
                         -*[fd]*) hit=0 ;;
@@ -444,6 +446,7 @@ hwip_approve_segment() {
     # 2b. terraform apply/destroy, past any `-chdir=…` style global option.
     if [[ $seg =~ (^|[^[:alnum:]_-])terraform[[:space:]] ]]; then
         rest=${seg#*"${BASH_REMATCH[0]}"}
+        rest=$(tr "\"'()\`{}" ' ' <<< "$rest")  # tokens must not carry a closing quote or paren
         read -ra toks <<< "$rest"
         for tok in "${toks[@]}"; do
             case "$tok" in
