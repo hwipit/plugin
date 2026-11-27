@@ -104,6 +104,21 @@
   { "name": "git clean --force --dry-run is a dry run",
     "command": "git clean --force -n", "expect": "no" },
 
+  { "name": "git -C with a spaced quoted dir before push -f",
+    "command": "git -C \"repo dir\" push -f", "expect": "yes" },
+  { "name": "git --work-tree with a spaced value before reset --hard",
+    "command": "git --work-tree=\"a b\" reset --hard", "expect": "yes" },
+  { "name": "single-quoted spaced -c value before push --force",
+    "command": "git -c 'a.b=c d' push --force origin x", "expect": "yes" },
+  { "name": "colon refspec deletes a remote branch",
+    "command": "git push origin :feat", "expect": "yes" },
+  { "name": "terraform -chdir with a spaced dir before apply",
+    "command": "terraform -chdir=\"infra dir\" apply", "expect": "yes" },
+  { "name": "terraform -chdir with a spaced dir before plan is ordinary",
+    "command": "terraform -chdir=\"infra dir\" plan", "expect": "no" },
+  { "name": "git -C spaced dir before status is ordinary",
+    "command": "git -C \"repo dir\" status", "expect": "no" },
+
   { "name": "an empty command asks for nothing",
     "command": "", "expect": "no" }
 ]

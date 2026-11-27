@@ -370,12 +370,33 @@ hwip_remote_clear() {
 #   2. history/working-tree destruction (force push, hard reset, clean -fd)
 #   3. anything that reaches deployed infrastructure
 #   4. destructive database statements
+# hwip_close_quotes <from> — a quoted option value may hold spaces
+# (`-C "repo dir"`, `-chdir="infra dir"`), which `read -ra` splits into several
+# tokens. Advances the caller's `i` past tokens until every quote opened since
+# toks[from] is closed, so the subcommand is still read at the right place.
+hwip_close_quotes() {
+    local j=$1 t d q od=0 os=0
+    while [ "$j" -lt "${#toks[@]}" ]; do
+        t=${toks[$j]}
+        d=${t//[^\"]/}; q=${t//[^\']/}
+        [ $(( ${#d} % 2 )) -eq 1 ] && od=$((1 - od))
+        [ $(( ${#q} % 2 )) -eq 1 ] && os=$((1 - os))
+        j=$((j + 1))
+        [ "$j" -ge "$i" ] && [ "$od" -eq 0 ] && [ "$os" -eq 0 ] && break
+    done
+    [ "$j" -gt "$i" ] && i=$j
+    return 0
+}
+
 # hwip_approve_segment <segment> — one simple command (already lower-cased,
 # split on ; | & and newlines). rc 0 when it is a hard-to-undo operation.
 # Judging a segment, not the whole string, is what keeps `rm -r build; ls -f`
 # from borrowing `ls`'s -f, and `git -C dir push -f` from hiding the push.
 hwip_approve_segment() {
-    local seg="$1" rest flags tok sub i
+    local seg="$1" rest flags tok sub i from
+    # Characters that wrap a command inside another (`bash -c "…"`, `$(…)`) and
+    # so cling to its first or last token.
+    local junk=$'"\'()`{}'
     local -a toks args
 
     # 1. rm carrying BOTH recursive and force, however they are spelled
@@ -400,27 +421,29 @@ hwip_approve_segment() {
     #    the subcommand, so they are skipped before the subcommand is read.
     if [[ $seg =~ (^|[^[:alnum:]_-])git[[:space:]] ]]; then
         rest=${seg#*"${BASH_REMATCH[0]}"}
-        rest=$(tr "\"'()\`{}" ' ' <<< "$rest")  # tokens must not carry a closing quote or paren
         read -ra toks <<< "$rest"
         i=0
         while [ "$i" -lt "${#toks[@]}" ]; do
             tok=${toks[$i]}
+            from=$i
             case "$tok" in
                 -C|-c|--git-dir|--work-tree|--namespace) i=$((i + 2)) ;;
                 -*) i=$((i + 1)) ;;
                 *) break ;;
             esac
+            hwip_close_quotes "$from"
         done
+        toks=("${toks[@]//["$junk"]/}")
         sub=${toks[$i]:-}
         args=()
         [ -n "$sub" ] && args=("${toks[@]:$((i + 1))}")
         case "$sub" in
             push)
                 # --force*, --delete, a short bundle holding f or d (`-fu`, `-uf`),
-                # or a +refspec (a force push of that one ref).
+                # a +refspec (a force push of that one ref) or a :ref (delete it).
                 for tok in "${args[@]}"; do
                     case "$tok" in
-                        --force*|--delete|+?*) return 0 ;;
+                        --force*|--delete|+?*|:?*) return 0 ;;
                         --*) ;;
                         -*[fd]*) return 0 ;;
                     esac
@@ -446,13 +469,16 @@ hwip_approve_segment() {
     # 2b. terraform apply/destroy, past any `-chdir=…` style global option.
     if [[ $seg =~ (^|[^[:alnum:]_-])terraform[[:space:]] ]]; then
         rest=${seg#*"${BASH_REMATCH[0]}"}
-        rest=$(tr "\"'()\`{}" ' ' <<< "$rest")  # tokens must not carry a closing quote or paren
         read -ra toks <<< "$rest"
-        for tok in "${toks[@]}"; do
+        i=0
+        while [ "$i" -lt "${#toks[@]}" ]; do
+            tok=${toks[$i]}
+            from=$i
             case "$tok" in
-                -*) ;;
-                apply|destroy) return 0 ;;
-                *) break ;;
+                -*) i=$((i + 1)); hwip_close_quotes "$from" ;;
+                *) tok=${tok//["$junk"]/}
+                   case "$tok" in apply|destroy) return 0 ;; esac
+                   break ;;
             esac
         done
     fi
