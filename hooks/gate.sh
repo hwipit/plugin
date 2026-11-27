@@ -375,16 +375,21 @@ hwip_remote_clear() {
 # tokens. Advances the caller's `i` past tokens until every quote opened since
 # toks[from] is closed, so the subcommand is still read at the right place.
 hwip_close_quotes() {
-    local j=$1 t d q od=0 os=0
+    local j=$1 t k ch q=""
     while [ "$j" -lt "${#toks[@]}" ]; do
         t=${toks[$j]}
-        d=${t//[^\"]/}; q=${t//[^\']/}
-        [ $(( ${#d} % 2 )) -eq 1 ] && od=$((1 - od))
-        [ $(( ${#q} % 2 )) -eq 1 ] && os=$((1 - os))
+        for ((k = 0; k < ${#t}; k++)); do
+            ch=${t:k:1}
+            if [ -z "$q" ]; then
+                case "$ch" in '"'|"'") q=$ch ;; esac
+            elif [ "$ch" = "$q" ]; then
+                q=""
+            fi
+        done
         j=$((j + 1))
-        [ "$j" -ge "$i" ] && [ "$od" -eq 0 ] && [ "$os" -eq 0 ] && break
+        [ "$j" -ge "$i" ] && [ -z "$q" ] && { i=$j; return 0; }
     done
-    [ "$j" -gt "$i" ] && i=$j
+    # Never closed: do not swallow the rest of the command — leave i as it was.
     return 0
 }
 

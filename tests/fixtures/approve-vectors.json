@@ -119,6 +119,11 @@
   { "name": "git -C spaced dir before status is ordinary",
     "command": "git -C \"repo dir\" status", "expect": "no" },
 
+  { "name": "apostrophe inside a double-quoted -c value before push -f",
+    "command": "git -c user.name=\"O'Brien\" push -f", "expect": "yes" },
+  { "name": "double quote inside a single-quoted -c value before push -f",
+    "command": "git -c 'a\"b' push -f", "expect": "yes" },
+
   { "name": "an empty command asks for nothing",
     "command": "", "expect": "no" }
 ]
