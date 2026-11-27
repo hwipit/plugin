@@ -155,7 +155,7 @@ hwip_hook_decision() {
 # predictable names in world-writable /tmp, where any local user could
 # pre-create a victim's mute file (sticky /tmp makes it un-deletable by the
 # victim). Legacy /tmp files are honored during migration, but only when
-# owned by the current user (-O) and not a symlink, which neutralizes planted files. The TS
+# a regular file (not a symlink) owned by the current user, checked in one lstat-based `find -P` so the type and owner cannot change between checks. The TS
 # twin is cli/src/gate.ts findStateFile — keep them behaviorally in sync.
 HWIP_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hwip"
 
@@ -172,7 +172,7 @@ HWIP_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hwip"
 hwip_state_present() {
     if [ -f "$HWIP_STATE_DIR/$1-$2" ]; then
         echo "$HWIP_STATE_DIR/$1-$2"
-    elif [ ! -L "/tmp/hwip-$1-$2" ] && [ -f "/tmp/hwip-$1-$2" ] && [ -O "/tmp/hwip-$1-$2" ]; then
+    elif [ -n "$(find -P "/tmp/hwip-$1-$2" -maxdepth 0 -type f -user "$(id -u)" 2>/dev/null)" ]; then
         echo "/tmp/hwip-$1-$2"
     elif [ "$1" = pushmode ] && [ -f "$HWIP_STATE_DIR/pushmode-default" ]; then
         echo "$HWIP_STATE_DIR/pushmode-default"
@@ -380,7 +380,10 @@ hwip_close_quotes() {
         t=${toks[$j]}
         for ((k = 0; k < ${#t}; k++)); do
             ch=${t:k:1}
-            if [ -z "$q" ]; then
+            # A backslash escapes the next character, except inside single quotes.
+            if [ "$ch" = "\\" ] && [ "$q" != "'" ]; then
+                k=$((k + 1))
+            elif [ -z "$q" ]; then
                 case "$ch" in '"'|"'") q=$ch ;; esac
             elif [ "$ch" = "$q" ]; then
                 q=""

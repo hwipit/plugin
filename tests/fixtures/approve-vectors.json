@@ -124,6 +124,11 @@
   { "name": "double quote inside a single-quoted -c value before push -f",
     "command": "git -c 'a\"b' push -f", "expect": "yes" },
 
+  { "name": "escaped double quote inside a double-quoted -c value before push -f",
+    "command": "git -c user.name=\"a\\\" b\" push -f", "expect": "yes" },
+  { "name": "backslash is literal inside single quotes before push -f",
+    "command": "git -c 'a\\' push -f", "expect": "yes" },
+
   { "name": "an empty command asks for nothing",
     "command": "", "expect": "no" }
 ]
