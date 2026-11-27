@@ -370,6 +370,92 @@ hwip_remote_clear() {
 #   2. history/working-tree destruction (force push, hard reset, clean -fd)
 #   3. anything that reaches deployed infrastructure
 #   4. destructive database statements
+# hwip_approve_segment <segment> — one simple command (already lower-cased,
+# split on ; | & and newlines). rc 0 when it is a hard-to-undo operation.
+# Judging a segment, not the whole string, is what keeps `rm -r build; ls -f`
+# from borrowing `ls`'s -f, and `git -C dir push -f` from hiding the push.
+hwip_approve_segment() {
+    local seg="$1" rest flags tok sub i
+    local -a toks args
+
+    # 1. rm carrying BOTH recursive and force, however they are spelled
+    #    (`-rf`, `-fr`, `-r -f`, long flags), by bare name or absolute path.
+    #
+    #    The hyphen goes LAST in the tr delete set. Written as ' -\n' it reads
+    #    as a RANGE from space (0x20) to newline (0x0A) — reversed, so GNU tr
+    #    aborts with "range-endpoints ... in reverse collating sequence order"
+    #    and prints nothing. BSD tr takes the same three bytes literally, so on
+    #    macOS it worked and on Linux `flags` came back empty and every
+    #    `rm -rf` walked straight through this gate.
+    if [[ $seg =~ (^|[^[:alnum:]_.-])(/[^[:space:]]*/)?rm[[:space:]] ]]; then
+        rest=${seg#*"${BASH_REMATCH[0]}"}
+        flags=$(sed -e 's/--recursive/-r/g' -e 's/--force/-f/g' <<< " $rest" \
+            | grep -Eo -- '(^|[[:space:]])-[[:alnum:]]+' \
+            | tr -d ' \n-')
+        case "$flags" in *r*f*|*f*r*) return 0 ;; esac
+    fi
+
+    # 2. Git operations that discard work or rewrite a published history.
+    #    Global options (`-C dir`, `-c k=v`, `--git-dir=…`) sit between `git` and
+    #    the subcommand, so they are skipped before the subcommand is read.
+    if [[ $seg =~ (^|[^[:alnum:]_-])git[[:space:]] ]]; then
+        rest=${seg#*"${BASH_REMATCH[0]}"}
+        read -ra toks <<< "$rest"
+        i=0
+        while [ "$i" -lt "${#toks[@]}" ]; do
+            tok=${toks[$i]}
+            case "$tok" in
+                -C|-c|--git-dir|--work-tree|--namespace) i=$((i + 2)) ;;
+                -*) i=$((i + 1)) ;;
+                *) break ;;
+            esac
+        done
+        sub=${toks[$i]:-}
+        args=()
+        [ -n "$sub" ] && args=("${toks[@]:$((i + 1))}")
+        case "$sub" in
+            push)
+                # --force*, --delete, a short bundle holding f or d (`-fu`, `-uf`),
+                # or a +refspec (a force push of that one ref).
+                for tok in "${args[@]}"; do
+                    case "$tok" in
+                        --force*|--delete|+?*) return 0 ;;
+                        --*) ;;
+                        -*[fd]*) return 0 ;;
+                    esac
+                done ;;
+            reset)
+                for tok in "${args[@]}"; do [ "$tok" = --hard ] && return 0; done ;;
+            clean)
+                # f or d anywhere in the flags, unless it is a dry run.
+                local hit=1
+                for tok in "${args[@]}"; do
+                    case "$tok" in
+                        --dry-run) return 1 ;;
+                        --*) ;;
+                        -*n*) return 1 ;;
+                        -*[fd]*) hit=0 ;;
+                    esac
+                done
+                return $hit ;;
+        esac
+    fi
+
+    # 2b. terraform apply/destroy, past any `-chdir=…` style global option.
+    if [[ $seg =~ (^|[^[:alnum:]_-])terraform[[:space:]] ]]; then
+        rest=${seg#*"${BASH_REMATCH[0]}"}
+        read -ra toks <<< "$rest"
+        for tok in "${toks[@]}"; do
+            case "$tok" in
+                -*) ;;
+                apply|destroy) return 0 ;;
+                *) break ;;
+            esac
+        done
+    fi
+    return 1
+}
+
 hwip_approve_needed() {
     local cmd="$1"
     [ -n "$cmd" ] || return 1
@@ -388,38 +474,29 @@ hwip_approve_needed() {
         *) return 1 ;;
     esac
 
-    # 1. rm carrying BOTH recursive and force, however they are spelled.
-    #    Collapsing every short flag into one string is what makes `-rf`,
-    #    `-fr` and `-r -f` the same question instead of three patterns.
-    #
-    #    The hyphen goes LAST in the tr delete set. Written as ' -\n' it reads
-    #    as a RANGE from space (0x20) to newline (0x0A) — reversed, so GNU tr
-    #    aborts with "range-endpoints ... in reverse collating sequence order"
-    #    and prints nothing. BSD tr takes the same three bytes literally, so on
-    #    macOS it worked and on Linux `flags` came back empty and every
-    #    `rm -rf` walked straight through this gate.
-    if grep -Eqi '(^|[^[:alnum:]_./-])rm[[:space:]]' <<< "$cmd"; then
-        local flags
-        flags=$(sed -e 's/--recursive/-r/g' -e 's/--force/-f/g' <<< "$cmd" \
-            | grep -Eo -- '(^|[[:space:]])-[[:alnum:]]+' \
-            | tr -d ' \n-' | tr 'A-Z' 'a-z')
-        case "$flags" in *r*f*|*f*r*) return 0 ;; esac
-    fi
+    # Normalise before matching. A backslash-newline is a line continuation, so
+    # it folds to a space; the remaining newlines are command separators for the
+    # per-segment checks (1, 2, terraform) and plain whitespace for the
+    # whole-string ones (deploy scripts, SQL), where grep's line-by-line view
+    # would let `DROP<newline>TABLE` through. Lower-cased once: every pattern
+    # here was case-insensitive anyway.
+    local flat segs seg
+    flat=${cmd//\\$'\n'/ }
+    flat=$(printf '%s' "$flat" | tr 'A-Z' 'a-z')
+    segs=$(printf '%s' "$flat" | tr ';|&' '\n\n\n')
+    flat=${flat//$'\n'/ }
 
-    # 2. Git operations that discard work or rewrite a published history.
-    #    The second push alternative is NOT redundant with the first: `^` anchors
-    #    to the start of the whole string, so once `push[[:space:]]` has eaten the
-    #    only space, `-f`'s own `(^|[[:space:]])` branch has nothing left to match
-    #    and bare `git push -f` slips through. Removing it fails a vector.
-    grep -Eqi 'git[[:space:]]+push[[:space:]].*(--force|--force-with-lease|(^|[[:space:]])-f([[:space:]]|$))|git[[:space:]]+push[[:space:]]+-f([[:space:]]|$)|git[[:space:]]+reset[[:space:]]+--hard|git[[:space:]]+clean[[:space:]]+-[[:alnum:]]*[fd]' <<< "$cmd" && return 0
+    while IFS= read -r seg; do
+        hwip_approve_segment "$seg" && return 0
+    done <<< "$segs"
 
     # 3. Anything that reaches deployed infrastructure. The last alternative is a
     #    package script whose NAME says deploy (`yarn server:deploy:prod`), kept
     #    behind a runner prefix so `grep -rn deploy src/` is not a deploy.
-    grep -Eqi '(^|[^[:alnum:]_-])(cdk|serverless|sls)[[:space:]]+deploy|(^|[^[:alnum:]_-])terraform[[:space:]]+(apply|destroy)|(^|[^[:alnum:]_-])(npm[[:space:]]+run|yarn|pnpm[[:space:]]+run|bun[[:space:]]+run)[[:space:]]+[[:alnum:]:_-]*deploy' <<< "$cmd" && return 0
+    grep -Eqi '(^|[^[:alnum:]_-])(cdk|serverless|sls)[[:space:]]+deploy|(^|[^[:alnum:]_-])(npm[[:space:]]+run|yarn|pnpm[[:space:]]+run|bun[[:space:]]+run)[[:space:]]+[[:alnum:]:_-]*deploy' <<< "$flat" && return 0
 
     # 4. Statements that drop data rather than change it.
-    grep -Eqi 'drop[[:space:]]+(table|database|schema)|truncate[[:space:]]+table|delete-table|flushall|flushdb' <<< "$cmd" && return 0
+    grep -Eqi 'drop[[:space:]]+(table|database|schema)|truncate[[:space:]]+table|delete-table|flushall|flushdb' <<< "$flat" && return 0
 
     return 1
 }
