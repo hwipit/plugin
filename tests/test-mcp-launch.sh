@@ -74,6 +74,12 @@ else
 fi
 assert_eq "the MCP pin equals the hooks pin" "$GATE_PIN" "$PIN"
 
+# Version bumps touch two files; a bump of only one leaves the plugin and the
+# npm package disagreeing about which release this is.
+PKG_VERSION=$(node -p 'require(process.argv[1]).version' "$SCRIPT_DIR/../package.json")
+PLUGIN_VERSION=$(node -p 'require(process.argv[1]).version' "$SCRIPT_DIR/../.claude-plugin/plugin.json")
+assert_eq "package.json version equals plugin.json version" "$PKG_VERSION" "$PLUGIN_VERSION"
+
 OUT=$(PATH="$TMP/without:/usr/bin:/bin" "${LAUNCH[@]}")
 assert_eq "no hwip on PATH → npx -y @hwip/cli@<pin> mcp" "npx -y @hwip/cli@$PIN mcp" "$OUT"
 
