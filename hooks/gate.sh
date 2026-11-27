@@ -155,7 +155,7 @@ hwip_hook_decision() {
 # predictable names in world-writable /tmp, where any local user could
 # pre-create a victim's mute file (sticky /tmp makes it un-deletable by the
 # victim). Legacy /tmp files are honored during migration, but only when
-# owned by the current user (-O), which neutralizes planted files. The TS
+# owned by the current user (-O) and not a symlink, which neutralizes planted files. The TS
 # twin is cli/src/gate.ts findStateFile — keep them behaviorally in sync.
 HWIP_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hwip"
 
@@ -172,7 +172,7 @@ HWIP_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hwip"
 hwip_state_present() {
     if [ -f "$HWIP_STATE_DIR/$1-$2" ]; then
         echo "$HWIP_STATE_DIR/$1-$2"
-    elif [ -f "/tmp/hwip-$1-$2" ] && [ -O "/tmp/hwip-$1-$2" ]; then
+    elif [ ! -L "/tmp/hwip-$1-$2" ] && [ -f "/tmp/hwip-$1-$2" ] && [ -O "/tmp/hwip-$1-$2" ]; then
         echo "/tmp/hwip-$1-$2"
     elif [ "$1" = pushmode ] && [ -f "$HWIP_STATE_DIR/pushmode-default" ]; then
         echo "$HWIP_STATE_DIR/pushmode-default"

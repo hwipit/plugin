@@ -171,6 +171,25 @@ assert_not "no ask rules"                      ctx_has "MANDATORY"
 state_reset
 
 echo
+echo "[legacy /tmp state — a symlink must not count, even to a file we own]"
+# The -O / uid check follows links, so a planted /tmp symlink to any file the
+# victim owns passed it. Same input to the JS hook and to gate.sh.
+LEGACY="/tmp/hwip-muted-$PROJECT_HASH"
+OWNED="$WORK/owned-file"; : > "$OWNED"
+ln -s "$OWNED" "$LEGACY"
+CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
+assert_not "setup hook ignores a symlinked legacy mute"  ctx_has "/hwip-mode unmute"
+# shellcheck source=/dev/null
+gate_sees_legacy() { (XDG_STATE_HOME="$STATE" . "$SCRIPT_DIR/../hooks/gate.sh"; hwip_state_present muted "$PROJECT_HASH" >/dev/null); }
+assert_not "gate.sh ignores a symlinked legacy mute"     gate_sees_legacy
+rm -f "$LEGACY"
+: > "$LEGACY"
+CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
+assert "a regular legacy file we own still mutes"        ctx_has "/hwip-mode unmute"
+assert "…and gate.sh agrees"                             gate_sees_legacy
+rm -f "$LEGACY"
+
+echo
 echo "[one-way — API key only]"
 state_reset
 CTX=$(run_hook HWIP_API_KEY=test-key)

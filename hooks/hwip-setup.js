@@ -118,7 +118,9 @@ const statePresent = (kind, hash) => {
     if (fs.existsSync(xdg)) return xdg;
     const legacy = `/tmp/hwip-${kind}-${hash}`;
     try {
-        if (fs.statSync(legacy).uid === process.getuid()) return legacy;
+        // lstat: a planted symlink to a file we own must not pass the uid check.
+        const st = fs.lstatSync(legacy);
+        if (st.isFile() && st.uid === process.getuid()) return legacy;
     } catch {}
     if (kind === 'pushmode') {
         const fallback = path.join(STATE_DIR, 'pushmode-default');
