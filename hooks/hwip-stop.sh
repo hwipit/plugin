@@ -43,6 +43,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 # The probe is asked at most once per run (hook_is_away), so a verdict the first call
 # reached is not re-asked against an already spent deadline.
 HWIP_HOOK_BUDGET_SEC=8
+# shellcheck disable=SC2034  # read by gate.sh after it is sourced
 HWIP_PROBE_DEADLINE=4
 
 # Claude Code sets CLAUDE_PROJECT_DIR; a hook run without it falls back to the

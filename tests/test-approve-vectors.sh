@@ -18,6 +18,7 @@ VECTORS="$SCRIPT_DIR/fixtures/approve-vectors.json"
 [ -f "$VECTORS" ]  || { echo "vectors not found: $VECTORS" >&2; exit 1; }
 command -v jq >/dev/null || { echo "jq required" >&2; exit 1; }
 
+# shellcheck source=/dev/null
 . "$GATE_LIB"
 
 PASS=0; FAIL=0; TOTAL=0

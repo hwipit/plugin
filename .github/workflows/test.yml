@@ -8,6 +8,7 @@ on:
 
 jobs:
   hooks:
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -38,6 +39,10 @@ jobs:
 
       - name: Run hook tests
         run: bash tests/run-all.sh
+
+      - name: Shellcheck
+        if: runner.os == 'Linux'
+        run: shellcheck -S warning -s bash hooks/*.sh scripts/*.sh tests/*.sh
 
       - name: Validate rules-sync contract
         run: node scripts/lint-rules-sync.js

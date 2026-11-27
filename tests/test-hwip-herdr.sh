@@ -43,12 +43,12 @@ IN_HERDR="wF:p1\n/sock\n$STUB_DIR/herdr"
 
 # Run the hook, then wait for the detached herdr call (or give up quietly).
 run() {
-    local before after i input="${INPUT:-}"
+    local before after input="${INPUT:-}"
     [ -n "$input" ] || input='{}'
     before=$(wc -l < "$LOG")
     printf '%s' "$input" | env PATH="$STUB_DIR:/usr/bin:/bin" CLAUDE_CODE_ENTRYPOINT="${CLAUDE_CODE_ENTRYPOINT:-cli}" XDG_STATE_HOME="$WORK/tmp" TMUX="${T-/tmp/tmux,1,0}" TMUX_PANE="${P:-%1}" OPTS="$OPTS" \
         bash "$HOOK_SCRIPT" "$1"
-    for i in $(seq 1 20); do
+    for _ in $(seq 1 20); do
         after=$(wc -l < "$LOG")
         [ "$after" -gt "$before" ] && break
         sleep 0.05
