@@ -43,9 +43,12 @@ echo "[approve-vectors — hwip_approve_needed]"
 # field non-empty on the wire and is stripped back off here.
 while IFS=$'\t' read -r name expected command; do
     command=${command#$'\001'}
+    # @tsv escapes newlines and backslashes; the jq below swaps them for sentinels.
+    command=${command//$'\002'/$'\n'}
+    command=${command//$'\003'/\\}
     if hwip_approve_needed "$command"; then actual=yes; else actual=no; fi
     record "$name" "$expected" "$actual"
-done < <(jq -r '.[] | [ .name, .expect, ("\u0001" + .command) ] | @tsv' "$VECTORS")
+done < <(jq -r '.[] | [ .name, .expect, ("\u0001" + (.command | gsub("\n"; "\u0002") | gsub("\\\\"; "\u0003"))) ] | @tsv' "$VECTORS")
 
 echo
 echo "[hwip_wrap_timeout — the approval gate needs a bound of its own]"
