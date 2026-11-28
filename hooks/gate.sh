@@ -490,6 +490,26 @@ hwip_approve_segment() {
             esac
         done
     fi
+
+    # 2c. cdk deploy/destroy, past its global options. Options that take a value
+    #     (`--profile p`, `-c k=v`, `--app 'npx x'`) skip the value too.
+    if [[ $seg =~ (^|[^[:alnum:]_-])cdk[[:space:]] ]]; then
+        rest=${seg#*"${BASH_REMATCH[0]}"}
+        read -ra toks <<< "$rest"
+        i=0
+        while [ "$i" -lt "${#toks[@]}" ]; do
+            tok=${toks[$i]}
+            from=$i
+            case "$tok" in
+                -a|--app|-c|--context|-p|--plugin|-r|--role-arn|-o|--output|--profile|--build|--proxy|--ca-bundle-path|--toolkit-stack-name|--trace-config|--notices-file) i=$((i + 2)) ;;
+                -*) i=$((i + 1)) ;;
+                *) tok=${tok//["$junk"]/}
+                   case "$tok" in deploy|destroy) return 0 ;; esac
+                   break ;;
+            esac
+            hwip_close_quotes "$from"
+        done
+    fi
     return 1
 }
 
