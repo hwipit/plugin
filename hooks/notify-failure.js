@@ -182,7 +182,7 @@ const takeKeyChanges = () => {
 const describeKeyChange = (c) =>
     `Hwip: ${c.name || c.deviceId} changed its encryption key — the new key is trusted. Not expecting that? Check: hwip trust`;
 
-module.exports = { readLastPushFailure, describeLastPushFailure, failurePath, takeKeyChanges, describeKeyChange, keyChangesPath };
+module.exports = { readLastPushFailure, describeLastPushFailure, takeKeyChanges, describeKeyChange };
 
 if (require.main === module) {
     if (process.argv[2] === 'key-changes') {
