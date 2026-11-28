@@ -111,11 +111,14 @@ const projectDir = () => {
 const projectHash = () =>
     execSync('cksum', { input: projectDir(), encoding: 'utf-8' }).trim().split(/\s+/)[0];
 
+// gate.sh tests `[ -f ]`: a directory squatting on the name is not state.
+const isFile = (p) => { try { return fs.statSync(p).isFile(); } catch { return false; } };
+
 // gate.sh hwip_state_present: XDG path, then a legacy /tmp copy but only when
 // the current user owns it (a planted file must not be able to mute someone).
 const statePresent = (kind, hash) => {
     const xdg = path.join(STATE_DIR, `${kind}-${hash}`);
-    if (fs.existsSync(xdg)) return xdg;
+    if (isFile(xdg)) return xdg;
     const legacy = `/tmp/hwip-${kind}-${hash}`;
     try {
         // lstat: a planted symlink to a file we own must not pass the uid check.
@@ -124,7 +127,7 @@ const statePresent = (kind, hash) => {
     } catch {}
     if (kind === 'pushmode') {
         const fallback = path.join(STATE_DIR, 'pushmode-default');
-        if (fs.existsSync(fallback)) return fallback;
+        if (isFile(fallback)) return fallback;
     }
     return null;
 };
@@ -136,7 +139,8 @@ const remoteActive = (hash) => {
     const file = path.join(STATE_DIR, `remote-active-${hash}`);
     let ts;
     try { ts = fs.readFileSync(file, 'utf-8').split('\n')[0].trim(); } catch { return false; }
-    if (!/^\d+$/.test(ts)) return false;
+    // gate.sh hwip_age_sec: at most 12 digits (anything longer is not a time).
+    if (!/^\d{1,12}$/.test(ts)) return false;
     return Math.floor(Date.now() / 1000) - Number(ts) <= REMOTE_TTL_SEC;
 };
 

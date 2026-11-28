@@ -190,6 +190,45 @@ assert "…and gate.sh agrees"                             gate_sees_legacy
 rm -f "$LEGACY"
 
 echo
+echo "[bash and JS agree on what a damaged state file means]"
+# hooks/gate.sh is the reference (hwip_age_sec: at most 12 digits, base 10;
+# hwip_state_present: a regular file). The same input goes to both twins.
+gate_sees_remote() { (XDG_STATE_HOME="$STATE" . "$SCRIPT_DIR/../hooks/gate.sh"; hwip_remote_active "$PROJECT_HASH"); }
+gate_sees_muted()  { (XDG_STATE_HOME="$STATE" . "$SCRIPT_DIR/../hooks/gate.sh"; hwip_state_present muted "$PROJECT_HASH" >/dev/null); }
+remote_pair() {
+    local desc="$1" content="$2" want="$3"
+    state_reset
+    printf '%s\n' "$content" > "$STATE/hwip/remote-active-$PROJECT_HASH"
+    CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
+    if [ "$want" = remote ]; then
+        assert "js: $desc → REMOTE"      ctx_has "this session is in REMOTE"
+    else
+        assert_not "js: $desc → NORMAL"  ctx_has "this session is in REMOTE"
+    fi
+    printf '%s\n' "$content" > "$STATE/hwip/remote-active-$PROJECT_HASH"
+    if [ "$want" = remote ]; then
+        assert "bash: $desc → REMOTE"      gate_sees_remote
+    else
+        assert_not "bash: $desc → NORMAL"  gate_sees_remote
+    fi
+}
+remote_pair "14-digit far-future stamp"      99999999999999 normal
+remote_pair "20-digit stamp"                 99999999999999999999 normal
+remote_pair "17-digit stamp with leading 0"  "0000000$(( $(date +%s) ))0" normal
+remote_pair "leading-0 stamp of 12 digits"   "00$(date +%s)" remote
+remote_pair "a fresh stamp"                  "$(date +%s)" remote
+remote_pair "an expired stamp"               "$(( $(date +%s) - 14401 ))" normal
+remote_pair "a non-numeric stamp"            soon normal
+remote_pair "an empty stamp"                 "" normal
+state_reset
+mkdir "$STATE/hwip/muted-$PROJECT_HASH"
+CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
+assert_not "js: a muted-<hash> directory is not a mute"    ctx_has "/hwip-mode unmute"
+assert_not "bash: a muted-<hash> directory is not a mute"  gate_sees_muted
+rmdir "$STATE/hwip/muted-$PROJECT_HASH"
+state_reset
+
+echo
 echo "[one-way — API key only]"
 state_reset
 CTX=$(run_hook HWIP_API_KEY=test-key)
