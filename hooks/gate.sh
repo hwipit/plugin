@@ -491,23 +491,16 @@ hwip_approve_segment() {
         done
     fi
 
-    # 2c. cdk deploy/destroy, past its global options. Options that take a value
-    #     (`--profile p`, `-c k=v`, `--app 'npx x'`) skip the value too.
+    # 2c. cdk deploy/destroy anywhere after `cdk`. cdk has many global options
+    #     that take a value (`--profile p`, `--require-approval never`), and a
+    #     list of them is always one short; a bare deploy/destroy word is the verb
+    #     (or a stack of that name — a rare over-ask, never a silent pass).
     if [[ $seg =~ (^|[^[:alnum:]_-])cdk[[:space:]] ]]; then
         rest=${seg#*"${BASH_REMATCH[0]}"}
         read -ra toks <<< "$rest"
-        i=0
-        while [ "$i" -lt "${#toks[@]}" ]; do
-            tok=${toks[$i]}
-            from=$i
-            case "$tok" in
-                -a|--app|-c|--context|-p|--plugin|-r|--role-arn|-o|--output|--profile|--build|--proxy|--ca-bundle-path|--toolkit-stack-name|--trace-config|--notices-file) i=$((i + 2)) ;;
-                -*) i=$((i + 1)) ;;
-                *) tok=${tok//["$junk"]/}
-                   case "$tok" in deploy|destroy) return 0 ;; esac
-                   break ;;
-            esac
-            hwip_close_quotes "$from"
+        for tok in "${toks[@]}"; do
+            tok=${tok//["$junk"]/}
+            case "$tok" in deploy|destroy) return 0 ;; esac
         done
     fi
     return 1
