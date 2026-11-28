@@ -19,11 +19,14 @@ bash tests/test-hwip-remote.sh
 Exits 0 when all tests pass, non-zero otherwise. CI runs `run-all.sh` on
 every PR via `.github/workflows/test.yml`, on Ubuntu and on macOS — the macOS
 job pins `bash` to the system 3.2 and runs with the BSD tools users have.
+The Ubuntu job also runs `shellcheck -S warning -s bash hooks/*.sh scripts/*.sh tests/*.sh`
+(covers `tests/*.sh` too), and both run `node scripts/lint-rules-sync.js`.
 
 ## What's covered
 
-The tests target scenarios that broke in the 0.5.0–0.5.3 hotfix cycle —
-each one would have failed before the corresponding fix landed:
+The tests target scenarios that broke in earlier hotfixes — each one would have
+failed before the corresponding fix landed. (The 0.5.x numbers in the table below
+name those hotfix releases, not `plugin.json`'s version, which is 0.1.x.)
 
 | Test | Catches |
 |------|---------|
@@ -125,10 +128,12 @@ Wall-clock cases, so the suite sleeps for real (~25 s): a stub `tmux` that answe
 | `last push failure — shown to the user in every configured state` | SessionStart's `systemMessage` carries the failure next to the mute or jq note, and nothing once the record is gone. |
 | `key changes — kept by whoever replaced a pin, shown once` / `key changes — shown once at session start, then gone` | `/hwip-mode` and SessionStart print one `Hwip: <device> changed its encryption key …` line per entry of `~/.hwip/key-changes.json` (`fixtures/key-changes.json` = the line cli `src/key-changes.test.ts` pins) and delete the record, so a second run says nothing. A name loses its control characters; an entry whose id or time is not one is dropped; a broken record or another version shows nothing and is cleared; file text never runs. While a writer holds `~/.hwip/trusted-devices.lock` nothing is taken and the record stays; a lock older than 10 s is broken; with no record no `~/.hwip` is made. |
 
-### Approval gate (`test-hwip-approve.sh`, `test-hwip-mode.sh`)
+### Approval gate (`test-hwip-approve.sh`, `test-hwip-mode.sh`, `test-approve-vectors.sh`)
 
 | Test | Catches |
 |------|---------|
+| `approve-vectors` (`test-approve-vectors.sh` over `fixtures/approve-vectors.json`) | One row per command, `yes`/`no` for `hwip_approve_needed` — the false negatives matter as much as the hits. Pins force-push spellings and option variants (`-fu`, `+refspec`, a `-C dir` before `push`; #20), `git clean -f` and `reset --hard` (#20), and `cdk destroy` plus `cdk` global options before `deploy`/`destroy` (#22). Edit a gate pattern and add its row here. |
+| `legacy /tmp state — a symlink must not count` (`test-hwip-setup.sh`) | The legacy `/tmp/hwip-muted-<hash>` check followed symlinks, so a planted link to any file the user owned muted the project. SessionStart and `gate.sh` must read it the same way: a symlink is ignored, a regular file we own still counts (#20, #22). |
 | `at the terminal — Claude Code's own prompt` | With a stubbed `ioreg` reading 10 s idle and `permission_mode` default / acceptEdits / plan, the hook answers `ask` and never pings the phone — it used to make a present user wait 75 s for a phone answer. |
 | `presence never turns the gate into an allow` | bypass-style modes, no mode, away, unreadable presence and REMOTE all keep the phone; none of them can produce `allow` without an Approve. |
 | `the phone says why there was no answer` | `hwip ask`'s `reason` — a cancel says "do not retry", a timeout and an error say what they are. |
@@ -136,6 +141,14 @@ Wall-clock cases, so the suite sleeps for real (~25 s): a stub `tmux` that answe
 | `approval gate — /hwip-mode approve on\|off` | The switch writes and removes `approve-<hash>`, status shows it (and that mute makes it inactive), and it never reprints the session rules. |
 | `a change that leaves the rules as they were` / `auto mode — an expired deadline` | normal → loud prints one line instead of the rules block; a crashed `/hwip-auto` session's file is cleared instead of showing negative minutes. |
 | `no CLAUDE_PROJECT_DIR — hashes what the shell hooks hash` (`test-hwip-setup.sh`) | SessionStart keyed state on `process.cwd()` (physical path) while the shell hooks used `$PWD`, so a symlinked cwd split mute / dial / REMOTE. |
+
+### Routing decisions (`test-ask-vectors.sh`, `test-gate-vectors.sh`, `test-hwip-ask.sh`)
+
+| Test | Catches |
+|------|---------|
+| `ask-vectors` (`fixtures/ask-vectors.json`) | The pure AskUserQuestion routing decision `hwip_ask_decide`: REMOTE push-shaped question → deny, NORMAL / long / `preview` / replay → picker. Plugin-only; no TS twin. |
+| `gate-vectors` (`fixtures/gate-vectors.json`) | The push-gate decision. Canonical cross-repo contract: the same file is vendored into `@hwip/cli` and run against its TS twin, so change `gate.sh`, the vectors and `gate.ts` together. |
+| `routing — a multi-question call carries every question in the reason` / `…plain-string options survive` (`test-hwip-ask.sh`) | A REMOTE deny of a 2+ question call listed only the first question, silently dropping the rest; plain-string options (not `{label}` objects) vanished from the reason (#21). |
 
 ### CLI start and state-file times (`test-hook-cli-and-state.sh`)
 

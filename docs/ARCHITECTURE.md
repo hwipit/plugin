@@ -6,8 +6,10 @@
 ┌─────────────────────────────────────────────────────────────┐
 │ Layer 3: Plugin (hooks)                                     │
 │ → 자동 실행. Claude Code 전용. 100% 신뢰.                   │
-│ → SessionStart · Stop · AskUserQuestion · Bash 승인 ·       │
-│   UserPromptSubmit 훅 5개                                   │
+│ → 훅 목록은 .claude-plugin/plugin.json 이 정본:             │
+│   SessionStart · Stop · AskUserQuestion · Bash 승인 ·       │
+│   PermissionDenied · UserPromptSubmit · hwip_ask 결과 ·     │
+│   herdr 상태(`hwip cc` pane용)                              │
 │ → hwip CLI (@hwip/cli) 사용                                 │
 ├─────────────────────────────────────────────────────────────┤
 │ Layer 2: MCP Server (`hwip mcp`, @hwip/cli 내장)            │
@@ -77,7 +79,7 @@ Claude가 유저에게 질문 (AskUserQuestion tool 호출)
 ### Bash 승인 Hook (hwip-approve.sh)
 
 프로젝트가 `/hwip-mode approve on`(`approve-<hash>` 상태 파일)으로 opt-in 했을 때만,
-되돌리기 어려운 Bash 명령(`rm -rf`, force push, prod 배포 등)을 붙잡는다. 사용자가
+되돌리기 어려운 Bash 명령(`rm -rf`, force push·reset --hard, 배포 명령 등)을 붙잡는다. 범주와 예는 HOOKS-EXPLAINED 의 Approve 절, 목록의 정본은 `gate.sh` 의 `hwip_approve_needed` 다. 사용자가
 터미널 앞이고(`hwip_presence` = present, tmux 안이면 이 세션의 pane 이 화면에 떠 있고 — `hwip_pane_visible`) REMOTE 가 아니며 권한 모드가 프롬프트를 띄우는
 모드면 `ask` 로 Claude Code 권한 프롬프트에 맡기고, 그 밖에는 폰에서 Approve 할 때까지
 기다린다. 폰의 "Allow this session" 은 같은 명령 문자열(sha256)을 같은 세션에서 30분 동안 다시 묻지 않는다(`approvesess-<hash>-<session_id>`, 범주 허용 · "항상" 없음). 거부 · 취소 · 타임아웃 · 서버 불통은 전부 deny. 보안 경계가 아니라 사고 방지용
@@ -201,7 +203,7 @@ hook의 자동 푸시 볼륨을 조절. mute가 완전 침묵이라면 push mode
 
 ### 2. Claude가 질문할 때 모바일로 알림 받고 싶다
 → **Plugin 설치만 하면 됨.** AskUserQuestion hook이 자동 알림.
-→ 단, 답변은 터미널에서 해야 함.
+→ 답변은 터미널에서 하거나, tmux + `hwip listener` 면 폰의 터미널 미러로 한다. 폰에서 시작한 세션(sticky REMOTE)이면 push 모양 질문은 picker 대신 `hwip_ask` 로 다시 묻는다(위 AskUserQuestion Hook).
 
 ### 3. 모바일에서 직접 답변/지시하고 싶다 (원격 제어)
 → hook id만 있으면 됨 (`hwip setup`이 `~/.hwip/config.json`에 `hookId`로 저장 — `HWIP_HOOK_ID` env는 선택). SessionStart 훅이 자동으로 양방향 룰을 주입.

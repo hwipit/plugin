@@ -366,6 +366,19 @@ jq -c 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_us
 - Only when Claude explicitly calls `AskUserQuestion`
 - Not automatic (depends on Claude's behavior)
 
+**In a REMOTE session** (a phone-driven session; sticky REMOTE, ADR-0002) the hook can
+deny instead of push: when the question is push-shaped (short stem, short option
+labels, no `preview`) `hwip_ask_decide` denies the picker and the deny reason tells the
+model to re-ask through `hwip_ask`. If you wonder why no picker opened, look here
+first. A repeat of a denied question is let through, so an unreachable MCP
+server cannot trap a session. Not REMOTE, or a long question: the picker opens as above.
+- **Several questions** (`questions` has more than one entry): the deny reason lists
+  every question, numbered, each with its options, and asks for one `hwip_ask` per
+  question in order. Options may be objects (`label`) or plain strings.
+- **Push body limit:** when the hook pushes (not a deny), the body carries only the
+  first question and its options (`.tool_input.questions[0]`). On a deny it sends no
+  push of its own; the model's `hwip_ask` does.
+
 **Example flow:**
 
 ```
@@ -414,10 +427,24 @@ ls "${XDG_STATE_HOME:-$HOME/.local/state}/hwip/muted-$HASH"
 
 ## Approve Hook (hwip-approve.sh)
 
-**What it does:** holds a hard-to-undo Bash command (`rm -rf`, force push, prod
-deploy — the short list in `gate.sh` `hwip_approve_needed`) until the user taps
-Approve on the phone. A speed bump against accidents, not a security boundary:
-it matches text in the command string.
+**What it does:** holds a hard-to-undo Bash command until the user taps Approve on
+the phone. A speed bump against accidents, not a security boundary: it matches text
+in the command string.
+
+**What it holds.** The list is short on purpose and lives in `gate.sh`
+(`hwip_approve_needed`, `hwip_approve_segment`) — that is the source of truth; this table
+is the shape, not the list:
+
+| Category | Examples |
+|----------|----------|
+| Recursive force delete | `rm -rf x`, `rm -fr`, `rm -r -f`, `rm --recursive --force` |
+| Git history / working-tree loss | `git push --force` / `-f` / `--delete` / `+ref` / `:ref`, `git reset --hard`, `git clean -fd` (not `--dry-run`), also behind `git -C dir` |
+| Deploy and teardown | `terraform apply\|destroy` (past `-chdir=…`), `cdk deploy\|destroy` (past global options), `serverless\|sls deploy`, `yarn\|npm run\|pnpm run\|bun run <script with "deploy" in its name>` |
+| Destructive SQL / stores | `drop table\|database\|schema`, `truncate table`, `delete-table`, `flushall`, `flushdb` |
+
+A deploy is matched by command name, not by target: `cdk deploy dev` and
+`yarn app:deploy:staging` ask just like a prod deploy. Read-only look-alikes
+(`grep -rn deploy src/`, `cdk diff`, `rm dist/bundle.js`) do not.
 
 **When it runs:**
 - Before every Bash tool call, but only does anything in a project that opted
