@@ -416,16 +416,13 @@ fi
 # Extract session UUID from transcript path (more reliable than cache file).
 # Fallback to the MCP server's per-user session cache for older Claude Code
 # versions that didn't expose a UUID-bearing transcript_path. The cache file
-# moved from /tmp (symlink-race prone, world-writable parent) to ~/.cache —
-# read both during the migration window.
+# lives under ~/.cache; the old /tmp copy (symlink-race prone) is not read.
 SESSION_ID=$(printf '%s' "$TRANSCRIPT" | grep -o '[0-9a-f]\{8\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{12\}' | tail -n1)
 if [ -z "$SESSION_ID" ]; then
     HWIP_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/hwip"
-    SESSION_ID=$(cat "$HWIP_CACHE_DIR/session-${MUTE_HASH}" 2>/dev/null \
-              || cat "/tmp/hwip-session-${MUTE_HASH}" 2>/dev/null)
+    SESSION_ID=$(cat "$HWIP_CACHE_DIR/session-${MUTE_HASH}" 2>/dev/null)
     # The fallback value expands unquoted into the CLI argv below — validate
-    # it so a tampered cache file (the /tmp one is world-writable-parent
-    # legacy) can never inject extra arguments. Session ids are sess_* tokens
+    # it so a tampered cache file can never inject extra arguments. Session ids are sess_* tokens
     # or UUIDs; allow only those shapes.
     case "$SESSION_ID" in
         *[!A-Za-z0-9_-]*) SESSION_ID="" ;;
