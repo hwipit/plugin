@@ -20,10 +20,13 @@ cd plugin
 bash tests/run-all.sh             # every suite under tests/
 bash tests/test-hwip-stop.sh      # or one suite at a time
 node scripts/lint-rules-sync.js   # validate the rules-sync contract
+shellcheck -S warning -s bash hooks/*.sh scripts/*.sh tests/*.sh   # CI runs this too
 ```
 
-CI runs both commands on Ubuntu and macOS (macOS with the system bash 3.2), so keep
-the hooks compatible with bash 3.2 and BSD tools.
+CI (`.github/workflows/test.yml`) runs `tests/run-all.sh` on Ubuntu and macOS (macOS with the
+system bash 3.2), so keep the hooks compatible with bash 3.2 and BSD tools. On Linux it also
+runs the `shellcheck` line above, and on both it runs `lint-rules-sync.js`. A shellcheck
+warning fails the PR even when every local test is green.
 
 ## Rules
 
