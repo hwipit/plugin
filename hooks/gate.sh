@@ -506,7 +506,7 @@ hwip_approve_needed() {
     # change matching for the rest of the calling script. Character classes are
     # also bash 3.2 safe (macOS /bin/bash), which `${cmd,,}` is not.
     case "$cmd" in
-        *[Rr][Mm]*|*[Gg][Ii][Tt]*|*[Dd][Ee][Pp][Ll][Oo][Yy]*|*[Tt][Ee][Rr][Rr][Aa][Ff][Oo][Rr][Mm]*) ;;
+        *[Rr][Mm]*|*[Gg][Ii][Tt]*|*[Dd][Ee][Pp][Ll][Oo][Yy]*|*[Dd][Ee][Ss][Tt][Rr][Oo][Yy]*|*[Tt][Ee][Rr][Rr][Aa][Ff][Oo][Rr][Mm]*) ;;
         *[Dd][Rr][Oo][Pp]*|*[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]*|*[Dd][Ee][Ll][Ee][Tt][Ee]*|*[Ff][Ll][Uu][Ss][Hh]*) ;;
         *) return 1 ;;
     esac
@@ -530,7 +530,7 @@ hwip_approve_needed() {
     # 3. Anything that reaches deployed infrastructure. The last alternative is a
     #    package script whose NAME says deploy (`yarn server:deploy:prod`), kept
     #    behind a runner prefix so `grep -rn deploy src/` is not a deploy.
-    grep -Eqi '(^|[^[:alnum:]_-])(cdk|serverless|sls)[[:space:]]+deploy|(^|[^[:alnum:]_-])(npm[[:space:]]+run|yarn|pnpm[[:space:]]+run|bun[[:space:]]+run)[[:space:]]+[[:alnum:]:_-]*deploy' <<< "$flat" && return 0
+    grep -Eqi '(^|[^[:alnum:]_-])(cdk[[:space:]]+(deploy|destroy)|(serverless|sls)[[:space:]]+deploy)|(^|[^[:alnum:]_-])(npm[[:space:]]+run|yarn|pnpm[[:space:]]+run|bun[[:space:]]+run)[[:space:]]+[[:alnum:]:_-]*deploy' <<< "$flat" && return 0
 
     # 4. Statements that drop data rather than change it.
     grep -Eqi 'drop[[:space:]]+(table|database|schema)|truncate[[:space:]]+table|delete-table|flushall|flushdb' <<< "$flat" && return 0

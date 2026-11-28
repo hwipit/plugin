@@ -32,6 +32,10 @@
 
   { "name": "cdk deploy reaches real infrastructure",
     "command": "cdk deploy --context stage=prod", "expect": "yes" },
+  { "name": "cdk destroy tears down real infrastructure",
+    "command": "cdk destroy --all --force", "expect": "yes" },
+  { "name": "cdk diff is read-only",
+    "command": "cdk diff", "expect": "no" },
   { "name": "serverless deploy",
     "command": "serverless deploy --stage prod", "expect": "yes" },
   { "name": "terraform apply",
