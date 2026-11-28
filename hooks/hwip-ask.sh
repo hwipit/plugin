@@ -146,13 +146,12 @@ PROJECT=${PROJECT_DIR%/}; PROJECT=${PROJECT##*/}
 # notification for the same question seconds later. Extraction mirrors
 # hwip-stop.sh: UUID out of the transcript path, MCP session cache as the
 # fallback, and the same argv-injection guard on the cache value (it expands
-# unquoted below, and the legacy /tmp copy has a world-writable parent).
+# unquoted below).
 TRANSCRIPT=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
 SESSION_ID=$(printf '%s' "$TRANSCRIPT" | grep -o '[0-9a-f]\{8\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{4\}-[0-9a-f]\{12\}' | tail -n1)
 if [ -z "$SESSION_ID" ]; then
     HWIP_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/hwip"
-    SESSION_ID=$(cat "$HWIP_CACHE_DIR/session-${MUTE_HASH}" 2>/dev/null \
-              || cat "/tmp/hwip-session-${MUTE_HASH}" 2>/dev/null)
+    SESSION_ID=$(cat "$HWIP_CACHE_DIR/session-${MUTE_HASH}" 2>/dev/null)
     case "$SESSION_ID" in
         *[!A-Za-z0-9_-]*) SESSION_ID="" ;;
     esac

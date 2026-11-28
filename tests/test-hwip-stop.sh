@@ -265,6 +265,20 @@ assert "legacy mute file still honored"  hwip_silent
 rm -f "/tmp/hwip-muted-$MUTE_HASH"
 
 echo
+echo "[session id — legacy /tmp cache is not read]"
+LEGACY_PROJECT="$WORK/legacy-session-project"
+mkdir -p "$LEGACY_PROJECT"
+LEGACY_HASH=$(printf '%s' "$LEGACY_PROJECT" | cksum | cut -d' ' -f1)
+printf 'sess_legacy\n' > "/tmp/hwip-session-$LEGACY_HASH"
+set_pushmode loud "$LEGACY_PROJECT"
+HOOK_ENV=(XDG_CACHE_HOME="$WORK/cache")
+run_hook "$FIXTURES/main-2-tools.jsonl" "$LEGACY_PROJECT"
+HOOK_ENV=()
+rm -f "/tmp/hwip-session-$LEGACY_HASH"; clear_pushmode "$LEGACY_PROJECT"
+assert "fires"                           hwip_called
+assert "ignores /tmp session cache"      test -z "$(grep -- '^--session=' "$WORK/last-call")"
+
+echo
 echo "[transcript_path missing — graceful exit]"
 rm -f "$WORK/last-call"
 echo '{}' | CLAUDE_PROJECT_DIR="$DEFAULT_PROJECT" PATH="$STUB_DIR:$PATH" XDG_STATE_HOME="$WORK/state" bash "$HOOK_SCRIPT" 2>/dev/null

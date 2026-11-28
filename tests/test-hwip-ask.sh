@@ -282,6 +282,14 @@ assert "rejects non-token cache value"   hwip_no_session
 rm -f "$WORK/cache/hwip/session-$CACHE_HASH"
 
 echo
+echo "[session id — legacy /tmp cache is not read]"
+# Only the world-writable-parent /tmp copy exists; a cache miss must stay unflagged.
+printf 'sess_legacy\n' > "/tmp/hwip-session-$CACHE_HASH"
+run_hook '{"tool_input":{"question":"ready?"}}' "$CACHE_PROJECT"
+rm -f "/tmp/hwip-session-$CACHE_HASH"
+assert "ignores /tmp session cache"      hwip_no_session
+
+echo
 echo "[mirror hint — listener alive AND in tmux, so the phone can drive the picker]"
 # The picker renders in `tmux capture-pane` and a `send-keys Down` moves the
 # selection, so a user on the phone CAN answer it — but only when the listener
