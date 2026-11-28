@@ -43,7 +43,6 @@ const envOr = (key) => {
     const v = process.env[key];
     if (!v) return undefined;
     if (v.startsWith('${')) return undefined; // unresolved ${VAR} placeholder
-    if (v.length === 0) return undefined;
     return v;
 };
 
