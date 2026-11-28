@@ -188,6 +188,18 @@ CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook)
 assert "a regular legacy file we own still mutes"        ctx_has "/hwip-mode unmute"
 assert "…and gate.sh agrees"                             gate_sees_legacy
 rm -f "$LEGACY"
+# A regular file someone else owns: only the owner check can refuse it. Both
+# twins are told they are another uid (the test cannot chown to root).
+: > "$LEGACY"
+cat > "$WORK/other-uid.js" <<'EOF'
+const real = process.getuid();
+process.getuid = () => real + 1;
+EOF
+CTX=$(run_hook HWIP_API_KEY=test-key HWIP_HOOK_ID=test-hook NODE_OPTIONS="--require $WORK/other-uid.js")
+assert_not "setup hook ignores a legacy mute owned by another uid"  ctx_has "/hwip-mode unmute"
+gate_other_uid() { (XDG_STATE_HOME="$STATE" . "$SCRIPT_DIR/../hooks/gate.sh"; id() { echo 0; }; hwip_state_present muted "$PROJECT_HASH" >/dev/null); }
+assert_not "gate.sh ignores a legacy mute owned by another uid"     gate_other_uid
+rm -f "$LEGACY"
 
 echo
 echo "[bash and JS agree on what a damaged state file means]"

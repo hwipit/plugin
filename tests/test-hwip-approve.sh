@@ -357,10 +357,20 @@ assert "and the phone's deny holds there"           decision_is deny
 OUT=$(run_hook "$(in_session 'rm -rf ./dist ' sess_A)")
 assert "a command that differs by one byte asks"    asked
 
+DIST_HASH=$(awk 'NR==1 {print $2}' "$SESS_FILE")
 sed -E 's/^[0-9]+ /1000 /' "$SESS_FILE" > "$SESS_FILE.tmp" && mv "$SESS_FILE.tmp" "$SESS_FILE"
 OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
 assert "an expired approval asks again"             asked
 assert "and the phone's deny holds after expiry"    decision_is deny
+
+# The TTL value itself (1800 s), not just "an old stamp expires".
+stub_session '{"answered":true,"actionId":"deny"}'
+printf '%s %s\n' "$(( $(date +%s) - 1700 ))" "$DIST_HASH" > "$SESS_FILE"
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
+assert_not "an approval 1700 s old is still good"   asked
+printf '%s %s\n' "$(( $(date +%s) - 1900 ))" "$DIST_HASH" > "$SESS_FILE"
+OUT=$(run_hook "$(in_session 'rm -rf ./dist' sess_A)")
+assert "an approval 1900 s old has expired"         asked
 
 stub_session '{"answered":true,"actionId":"approve"}'
 rm -f "$WORK/state/hwip"/approvesess-*
