@@ -298,6 +298,28 @@ assert "a marker with a leading 0 still enters REMOTE"    bash -c 'printf "%s" "
 rm -f "$WORK/state/hwip/remote-$HASH" "$WORK/state/hwip/remote-active-$HASH"
 
 echo
+echo "[gate.sh clock and probe decisions — one function, one input]"
+# Mutation-driven (t34): each of these branches could be deleted with the whole
+# suite still green. All fail OPEN when they regress, so they are pinned here.
+GATE="$HOOKS/gate.sh"
+in_gate() { bash -c ". '$GATE'; $1"; }
+assert "probe: no seconds left -> not run (false)"      in_gate 'HWIP_PROBE_DEADLINE=$SECONDS; [ "$(hwip_probe_cmd tmux)" = false ]'
+assert "probe: 1s left -> bound of 1, not 2"            in_gate 'HWIP_PROBE_DEADLINE=$((SECONDS+1)); case "$(hwip_probe_cmd tmux)" in *" 1 tmux") exit 0;; esac; exit 1'
+assert_not "command_hash with no sha tool fails"        bash -c ". '$GATE'; PATH=/nonexistent; hwip_command_hash 'rm -rf x'"
+assert_not "stamp exactly TTL old is not fresh"         in_gate 'hwip_ask_now(){ echo 1000000000; }; hwip_stamp_fresh 999999400 600'
+assert "stamp TTL-1 old is fresh"                       in_gate 'hwip_ask_now(){ echo 1000000000; }; hwip_stamp_fresh 999999401 600'
+assert "remote: exactly TTL old is still active"        in_gate 'HWIP_STATE_DIR=$(mktemp -d); hwip_ask_now(){ echo 1000000000; }; echo 999985600 > $HWIP_STATE_DIR/remote-active-7; hwip_remote_active 7'
+assert_not "remote: TTL+1 old is expired"               in_gate 'HWIP_STATE_DIR=$(mktemp -d); hwip_ask_now(){ echo 1000000000; }; echo 999985599 > $HWIP_STATE_DIR/remote-active-7; hwip_remote_active 7'
+
+# Two tmux clients, the recent one listed first: the newest activity decides.
+TMUXBIN="$WORK/tmuxbin"; mkdir -p "$TMUXBIN"
+NOW_T=$(date +%s)
+printf '#!/bin/sh\ncase "$*" in *list-clients*) printf "%%s\\n%%s\\n" %s %s;; *show-environment*) exit 1;; esac\n' "$NOW_T" "$((NOW_T - 9000))" > "$TMUXBIN/tmux"
+chmod +x "$TMUXBIN/tmux"
+assert "presence: a recent client among stale ones is present" \
+    env PATH="$TMUXBIN:/usr/bin:/bin" TMUX=x HWIP_AWAY_SEC=300 bash -c ". '$GATE'; [ \"\$(hwip_presence)\" = present ]"
+
+echo
 echo "=========================================="
 echo "Total: $TOTAL  |  Passed: $PASS  |  Failed: $FAIL"
 echo "=========================================="

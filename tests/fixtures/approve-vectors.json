@@ -150,5 +150,26 @@
     "command": "git -c 'a\\' push -f", "expect": "yes" },
 
   { "name": "an empty command asks for nothing",
-    "command": "", "expect": "no" }
+    "command": "", "expect": "no" },
+
+  { "name": "rm -f on its own is not the pattern",
+    "command": "rm -f dist/a.js", "expect": "no" },
+  { "name": "rm -r on its own is not the pattern",
+    "command": "rm -r dist", "expect": "no" },
+  { "name": "rm -Rf, the macOS spelling, is a recursive force delete",
+    "command": "rm -Rf node_modules", "expect": "yes" },
+  { "name": "rm -RF in capitals is still a recursive force delete",
+    "command": "rm -RF build", "expect": "yes" },
+  { "name": "serverless deploy via sls",
+    "command": "sls deploy --stage prod", "expect": "yes" },
+  { "name": "terraform destroy",
+    "command": "terraform destroy", "expect": "yes" },
+  { "name": "pnpm run with a deploy script",
+    "command": "pnpm run deploy:prod", "expect": "yes" },
+  { "name": "bun run with a deploy script",
+    "command": "bun run deploy", "expect": "yes" },
+  { "name": "dropping a schema",
+    "command": "psql -c 'DROP SCHEMA public CASCADE'", "expect": "yes" },
+  { "name": "redis flushdb",
+    "command": "redis-cli FLUSHDB", "expect": "yes" }
 ]
